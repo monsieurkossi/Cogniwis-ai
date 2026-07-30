@@ -1,26 +1,127 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-red-hat), "Red Hat Display", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display: var(--font-red-hat), "Red Hat Display", ui-sans-serif,
+    system-ui, sans-serif;
+
+  --color-surface: #f8f9fc;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #f0f2f7;
+  --color-surface-3: #e8eaf0;
+
+  --color-accent: #4f46e5;
+  --color-accent-light: #eef2ff;
+  --color-accent-dark: #3730a3;
+
+  --color-status-critical: #ef4444;
+  --color-status-critical-bg: #fef2f2;
+  --color-status-fragile: #f59e0b;
+  --color-status-fragile-bg: #fffbeb;
+  --color-status-solid: #10b981;
+  --color-status-solid-bg: #ecfdf5;
+
+  --color-oni: #6366f1;
+  --color-oni-glow: #818cf8;
+
+  --radius-card: 12px;
+  --radius-pill: 999px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f8f9fc;
+  --foreground: #111827;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-red-hat), "Red Hat Display", ui-sans-serif,
+    system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Oni orb — the visual identity of the agent */
+.oni-orb {
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #818cf8, #6366f1, #4f46e5);
+  box-shadow: 0 0 60px rgba(99, 102, 241, 0.3);
+  animation: oni-pulse 3s ease-in-out infinite;
+}
+
+.oni-orb.speaking {
+  animation: oni-speak 1s ease-in-out infinite;
+}
+
+@keyframes oni-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 60px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 80px rgba(99, 102, 241, 0.4);
+  }
+}
+
+@keyframes oni-speak {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* Typing dots for streaming */
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ca3af;
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* Subtle scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Utility: subtle card shadow */
+.shadow-card {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 12px rgba(15, 23, 42, 0.04);
 }
