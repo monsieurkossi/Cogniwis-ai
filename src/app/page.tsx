@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { OniAvatar } from "@/components/OniAvatar";
+import { CogniwisLogo } from "@/components/CogniwisLogo";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function LandingPage() {
@@ -23,11 +24,12 @@ export default async function LandingPage() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-surface flex items-center">
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <div className="flex justify-center">
-          <OniAvatar size={140} />
+        <div className="flex justify-center items-center gap-4">
+          <CogniwisLogo size={72} />
+          <OniAvatar size={72} />
         </div>
         <h1 className="mt-8 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900">
-          Ton Strategic Decision OS.
+          Ton <span className="text-accent">Strategic Decision OS</span>.
         </h1>
         <p className="mt-4 text-lg text-gray-600 max-w-xl mx-auto">
           Cogniwis t&apos;aide à sortir du doute stratégique. Une conversation

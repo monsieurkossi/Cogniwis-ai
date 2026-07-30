@@ -11,9 +11,9 @@
   --color-surface-2: #f0f2f7;
   --color-surface-3: #e8eaf0;
 
-  --color-accent: #4f46e5;
-  --color-accent-light: #eef2ff;
-  --color-accent-dark: #3730a3;
+  --color-accent: #0022ff;
+  --color-accent-light: #eef0ff;
+  --color-accent-dark: #0018cc;
 
   --color-status-critical: #ef4444;
   --color-status-critical-bg: #fef2f2;
@@ -22,8 +22,8 @@
   --color-status-solid: #10b981;
   --color-status-solid-bg: #ecfdf5;
 
-  --color-oni: #6366f1;
-  --color-oni-glow: #818cf8;
+  --color-oni: #0022ff;
+  --color-oni-glow: #5f7dff;
 
   --radius-card: 12px;
   --radius-pill: 999px;
@@ -45,8 +45,8 @@ body {
 /* Oni orb — the visual identity of the agent */
 .oni-orb {
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #818cf8, #6366f1, #4f46e5);
-  box-shadow: 0 0 60px rgba(99, 102, 241, 0.3);
+  background: radial-gradient(circle at 30% 30%, #5f7dff, #1e3aff, #0022ff);
+  box-shadow: 0 0 60px rgba(0, 34, 255, 0.3);
   animation: oni-pulse 3s ease-in-out infinite;
 }
 
@@ -58,11 +58,11 @@ body {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 60px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 60px rgba(0, 34, 255, 0.3);
   }
   50% {
     transform: scale(1.05);
-    box-shadow: 0 0 80px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 80px rgba(0, 34, 255, 0.4);
   }
 }
 

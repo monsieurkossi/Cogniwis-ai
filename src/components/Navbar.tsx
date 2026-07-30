@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { CogniwisLogo } from "./CogniwisLogo";
 
 interface Props {
   userEmail?: string | null;
@@ -29,7 +30,7 @@ export function Navbar({ userEmail }: Props) {
     <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur border-b border-gray-200">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="oni-orb" style={{ width: 24, height: 24 }} />
+          <CogniwisLogo size={28} />
           <span className="font-semibold text-gray-900 tracking-tight">
             Cogniwis
           </span>
@@ -43,7 +44,7 @@ export function Navbar({ userEmail }: Props) {
                 href={l.href}
                 className={`px-3 py-1.5 rounded-card text-sm font-medium transition-colors ${
                   active
-                    ? "bg-accent-light text-accent-dark"
+                    ? "bg-accent text-white"
                     : "text-gray-600 hover:bg-surface-2"
                 }`}
               >
