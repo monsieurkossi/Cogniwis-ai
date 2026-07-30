@@ -25,7 +25,7 @@ export default async function LandingPage() {
     <div className="min-h-[calc(100vh-3.5rem)] bg-surface flex items-center">
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
         <div className="flex justify-center items-center gap-4">
-          <CogniwisLogo size={72} />
+          <CogniwisLogo size={72} priority />
           <OniAvatar size={72} />
         </div>
         <h1 className="mt-8 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900">
