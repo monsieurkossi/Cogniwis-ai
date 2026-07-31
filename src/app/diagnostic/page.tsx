@@ -19,13 +19,17 @@ interface PendingConversation {
   recap: string | null;
 }
 
+type ErrorState =
+  | { kind: "no-conversation" }
+  | { kind: "retry"; message?: string; debug?: string; status?: number };
+
 function DiagnosticInner() {
   const params = useSearchParams();
   const router = useRouter();
   const conversationId = params.get("conversation");
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorState | null>(null);
 
   const load = useCallback(
     async (opts?: { force?: boolean }) => {
@@ -68,8 +72,22 @@ function DiagnosticInner() {
               recap: pending.recap,
             }),
           });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.error ?? "Erreur diagnostic");
+          const json = (await res.json()) as {
+            diagnostic?: Diagnostic;
+            error?: string;
+            debug?: string;
+          };
+          if (!res.ok) {
+            console.error("[diagnostic] réponse !ok", res.status, json);
+            setError({
+              kind: "retry",
+              message: json.error,
+              debug: json.debug,
+              status: res.status,
+            });
+            setLoading(false);
+            return;
+          }
           setDiagnostic(json.diagnostic as Diagnostic);
           try {
             sessionStorage.setItem(
@@ -78,10 +96,12 @@ function DiagnosticInner() {
             );
           } catch {}
           setLoading(false);
-        } catch {
-          // On garde le message technique dans la console via le server log,
-          // et on affiche un message humain à l'utilisateur.
-          setError("retry");
+        } catch (err) {
+          console.error("[diagnostic] fetch failed", err);
+          setError({
+            kind: "retry",
+            message: err instanceof Error ? err.message : "network",
+          });
           setLoading(false);
         }
         return;
@@ -101,7 +121,7 @@ function DiagnosticInner() {
         cid = data?.id ?? null;
       }
       if (!cid) {
-        setError("no-conversation");
+        setError({ kind: "no-conversation" });
         setLoading(false);
         return;
       }
@@ -111,12 +131,30 @@ function DiagnosticInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ conversationId: cid }),
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Erreur diagnostic");
+        const json = (await res.json()) as {
+          diagnostic?: Diagnostic;
+          error?: string;
+          debug?: string;
+        };
+        if (!res.ok) {
+          console.error("[diagnostic] réponse !ok", res.status, json);
+          setError({
+            kind: "retry",
+            message: json.error,
+            debug: json.debug,
+            status: res.status,
+          });
+          setLoading(false);
+          return;
+        }
         setDiagnostic(json.diagnostic as Diagnostic);
         setLoading(false);
-      } catch {
-        setError("retry");
+      } catch (err) {
+        console.error("[diagnostic] fetch failed", err);
+        setError({
+          kind: "retry",
+          message: err instanceof Error ? err.message : "network",
+        });
         setLoading(false);
       }
     },
@@ -148,7 +186,7 @@ function DiagnosticInner() {
           <ProgressStepper active="Diagnostic" />
         </div>
 
-        {error === "no-conversation" && (
+        {error?.kind === "no-conversation" && (
           <div className="bg-surface-1 border border-gray-200 rounded-card p-6 text-center shadow-card">
             <p className="text-gray-900 font-semibold mb-1">
               Oni a besoin d&apos;échanger avec toi d&apos;abord
@@ -166,21 +204,47 @@ function DiagnosticInner() {
           </div>
         )}
 
-        {error === "retry" && (
-          <div className="bg-amber-50 border border-amber-200 rounded-card p-6 text-center shadow-card">
-            <p className="text-amber-900 font-semibold mb-1">
-              Oni a eu un souci en analysant ton profil
-            </p>
-            <p className="text-sm text-amber-700 mb-4">
-              Ça arrive parfois. On relance l&apos;analyse.
-            </p>
-            <button
-              type="button"
-              onClick={() => load({ force: true })}
-              className="inline-block px-5 py-2.5 rounded-card bg-accent text-white font-semibold text-sm hover:bg-accent-dark transition-colors"
-            >
-              Relancer le diagnostic
-            </button>
+        {error?.kind === "retry" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-card p-6 shadow-card">
+            <div className="text-center">
+              <p className="text-amber-900 font-semibold mb-1">
+                Oni a eu un souci en analysant ton profil
+              </p>
+              <p className="text-sm text-amber-700 mb-4">
+                Ça arrive parfois. On relance l&apos;analyse.
+              </p>
+              <button
+                type="button"
+                onClick={() => load({ force: true })}
+                className="inline-block px-5 py-2.5 rounded-card bg-accent text-white font-semibold text-sm hover:bg-accent-dark transition-colors"
+              >
+                Relancer le diagnostic
+              </button>
+            </div>
+            {(error.debug || error.message || error.status) && (
+              <details className="mt-6">
+                <summary className="text-xs text-gray-500 cursor-pointer select-none">
+                  Debug info (temporaire)
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {error.status && (
+                    <div className="text-xs text-gray-500">
+                      status HTTP : <span className="font-mono">{error.status}</span>
+                    </div>
+                  )}
+                  {error.message && (
+                    <div className="text-xs text-gray-500">
+                      error : <span className="font-mono">{error.message}</span>
+                    </div>
+                  )}
+                  {error.debug && (
+                    <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all bg-gray-100 p-3 rounded max-h-96 overflow-auto">
+                      {error.debug}
+                    </pre>
+                  )}
+                </div>
+              </details>
+            )}
           </div>
         )}
 
