@@ -72,17 +72,38 @@ function DiagnosticInner() {
               recap: pending.recap,
             }),
           });
-          const json = (await res.json()) as {
+          const rawText = await res.text();
+          let json: {
             diagnostic?: Diagnostic;
             error?: string;
             debug?: string;
-          };
+          } = {};
+          try {
+            json = JSON.parse(rawText);
+          } catch {
+            // Vercel a probablement renvoyé une page HTML d'erreur (timeout,
+            // crash runtime). On expose le texte brut pour debug.
+            console.error(
+              "[diagnostic] réponse non-JSON, status:",
+              res.status,
+              "body:",
+              rawText.substring(0, 500)
+            );
+            setError({
+              kind: "retry",
+              message: `non-JSON response (${res.status})`,
+              debug: rawText.substring(0, 1500),
+              status: res.status,
+            });
+            setLoading(false);
+            return;
+          }
           if (!res.ok) {
             console.error("[diagnostic] réponse !ok", res.status, json);
             setError({
               kind: "retry",
               message: json.error,
-              debug: json.debug,
+              debug: json.debug ?? rawText.substring(0, 1500),
               status: res.status,
             });
             setLoading(false);
@@ -131,17 +152,36 @@ function DiagnosticInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ conversationId: cid }),
         });
-        const json = (await res.json()) as {
+        const rawText = await res.text();
+        let json: {
           diagnostic?: Diagnostic;
           error?: string;
           debug?: string;
-        };
+        } = {};
+        try {
+          json = JSON.parse(rawText);
+        } catch {
+          console.error(
+            "[diagnostic] réponse non-JSON, status:",
+            res.status,
+            "body:",
+            rawText.substring(0, 500)
+          );
+          setError({
+            kind: "retry",
+            message: `non-JSON response (${res.status})`,
+            debug: rawText.substring(0, 1500),
+            status: res.status,
+          });
+          setLoading(false);
+          return;
+        }
         if (!res.ok) {
           console.error("[diagnostic] réponse !ok", res.status, json);
           setError({
             kind: "retry",
             message: json.error,
-            debug: json.debug,
+            debug: json.debug ?? rawText.substring(0, 1500),
             status: res.status,
           });
           setLoading(false);
