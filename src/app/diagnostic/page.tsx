@@ -2,20 +2,13 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { OniAvatar } from "@/components/OniAvatar";
 import { OniMessage } from "@/components/OniMessage";
 import { ProgressStepper } from "@/components/ProgressStepper";
 import { PillarList } from "@/components/PillarList";
 import { OniFab } from "@/components/OniFab";
+import { AiLoader } from "@/components/ui/ai-loader";
 import { createClient } from "@/lib/supabase/client";
 import type { Diagnostic } from "@/lib/types";
-
-const LOADING_STEPS = [
-  "Je relis nos échanges…",
-  "J'évalue tes 7 piliers…",
-  "J'applique les règles de décision…",
-  "Je calcule ta priorité…",
-];
 
 function DiagnosticInner() {
   const params = useSearchParams();
@@ -23,17 +16,7 @@ function DiagnosticInner() {
   const conversationId = params.get("conversation");
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!loading) return;
-    const t = setInterval(
-      () => setLoadingStep((s) => Math.min(s + 1, LOADING_STEPS.length - 1)),
-      1400
-    );
-    return () => clearInterval(t);
-  }, [loading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,41 +70,11 @@ function DiagnosticInner() {
 
   return (
     <div className="min-h-screen bg-surface">
+      {loading && <AiLoader text="Diagnostic" />}
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-10">
         <div className="mb-6">
           <ProgressStepper active="Diagnostic" />
         </div>
-
-        {loading && (
-          <div className="flex flex-col items-center py-16 text-center">
-            <OniAvatar size={120} speaking />
-            <h2 className="mt-6 text-xl font-semibold text-gray-900">
-              Oni analyse ta situation
-            </h2>
-            <div className="mt-4 space-y-1.5 text-sm text-gray-600 min-h-[6rem]">
-              {LOADING_STEPS.map((s, i) => (
-                <div
-                  key={s}
-                  className={`transition-opacity ${
-                    i <= loadingStep ? "opacity-100" : "opacity-30"
-                  }`}
-                >
-                  {i < loadingStep && (
-                    <span className="text-status-solid mr-1.5">✓</span>
-                  )}
-                  {i === loadingStep && (
-                    <span className="typing-dots align-middle mr-1.5">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                  )}
-                  {s}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {error && (
           <div className="bg-status-critical-bg border border-status-critical/30 rounded-card p-4 text-status-critical">
