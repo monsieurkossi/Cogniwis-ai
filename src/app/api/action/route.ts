@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAnthropic, ONI_MODEL } from "@/lib/anthropic";
 import { ONI_SYSTEM_PROMPT, ACTION_INSTRUCTION } from "@/lib/prompts/oni-system";
-import type { ActionPayload } from "@/lib/types";
+import type { ActionPayload, DiagnosticPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -13,10 +13,89 @@ function stripJsonFences(text: string): string {
   return trimmed;
 }
 
+interface ActionRequestBody {
+  diagnosticId?: string;
+  diagnostic?: DiagnosticPayload;
+}
+
+async function generateAction(
+  diagnostic: Pick<
+    DiagnosticPayload,
+    "verdict" | "reframing" | "reasoning" | "global_score" | "priority_pillar" | "pillars"
+  >
+): Promise<{ payload: ActionPayload } | { error: string; raw?: string; status: number }> {
+  const anthropic = getAnthropic();
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: ONI_MODEL,
+      max_tokens: 2048,
+      system: ONI_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: `Voici le diagnostic établi précédemment :\n\n${JSON.stringify(
+            diagnostic,
+            null,
+            2
+          )}\n\n${ACTION_INSTRUCTION}`,
+        },
+      ],
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "erreur Anthropic";
+    return { error: message, status: 500 };
+  }
+
+  const textBlock = response.content.find((c) => c.type === "text");
+  const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
+  try {
+    return { payload: JSON.parse(stripJsonFences(raw)) as ActionPayload };
+  } catch {
+    return { error: "Réponse Oni non parsable en JSON", raw, status: 502 };
+  }
+}
+
 export async function POST(request: NextRequest) {
-  const { diagnosticId } = (await request.json()) as { diagnosticId?: string };
+  const body = (await request.json()) as ActionRequestBody;
+
+  // Mode anonyme : diagnostic direct
+  if (body.diagnostic) {
+    const result = await generateAction(body.diagnostic);
+    if ("error" in result) {
+      return Response.json(
+        { error: result.error, raw: result.raw },
+        { status: result.status }
+      );
+    }
+    const p = result.payload;
+    return Response.json({
+      action: {
+        id: `anon-action-${Date.now()}`,
+        user_id: null,
+        diagnostic_id: null,
+        pillar: p.pillar,
+        step_number: p.step_number,
+        total_steps: p.total_steps,
+        title: p.title,
+        description: p.description,
+        deliverable: p.deliverable,
+        estimated_time: p.estimated_time,
+        kpi_target: p.kpi_target,
+        kpi_result: null,
+        status: "active",
+        clients: p.clients ?? [],
+        created_at: new Date().toISOString(),
+        completed_at: null,
+      },
+      reused: false,
+      anonymous: true,
+    });
+  }
+
+  const diagnosticId = body.diagnosticId;
   if (!diagnosticId) {
-    return Response.json({ error: "diagnosticId required" }, { status: 400 });
+    return Response.json({ error: "diagnosticId ou diagnostic requis" }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -27,7 +106,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Reuse existing active/pending action for this diagnostic
   const { data: existing } = await supabase
     .from("actions")
     .select("*")
@@ -52,50 +130,21 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "diagnostic not found" }, { status: 404 });
   }
 
-  const diagContext = {
+  const result = await generateAction({
     verdict: diag.verdict,
     reframing: diag.reframing,
     reasoning: diag.reasoning,
     global_score: diag.global_score,
     priority_pillar: diag.priority_pillar,
     pillars: diag.pillars,
-  };
-
-  const anthropic = getAnthropic();
-
-  let response;
-  try {
-    response = await anthropic.messages.create({
-      model: ONI_MODEL,
-      max_tokens: 2048,
-      system: ONI_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Voici le diagnostic établi précédemment :\n\n${JSON.stringify(
-            diagContext,
-            null,
-            2
-          )}\n\n${ACTION_INSTRUCTION}`,
-        },
-      ],
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "erreur Anthropic";
-    return Response.json({ error: message }, { status: 500 });
-  }
-
-  const textBlock = response.content.find((c) => c.type === "text");
-  const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
-  let payload: ActionPayload;
-  try {
-    payload = JSON.parse(stripJsonFences(raw)) as ActionPayload;
-  } catch {
+  });
+  if ("error" in result) {
     return Response.json(
-      { error: "Réponse Oni non parsable en JSON", raw },
-      { status: 502 }
+      { error: result.error, raw: result.raw },
+      { status: result.status }
     );
   }
+  const payload = result.payload;
 
   const { data: inserted, error: insertErr } = await supabase
     .from("actions")
@@ -138,6 +187,11 @@ export async function PATCH(request: NextRequest) {
 
   if (!actionId) {
     return Response.json({ error: "actionId required" }, { status: 400 });
+  }
+
+  // Actions anonymes : rien à persister, on renvoie 204
+  if (actionId.startsWith("anon-")) {
+    return Response.json({ action: null, anonymous: true });
   }
 
   const supabase = await createClient();

@@ -2,13 +2,22 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { OniMessage } from "@/components/OniMessage";
 import { ProgressStepper } from "@/components/ProgressStepper";
 import { PillarList } from "@/components/PillarList";
 import { OniFab } from "@/components/OniFab";
-import { AiLoader } from "@/components/ui/ai-loader";
+import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { createClient } from "@/lib/supabase/client";
-import type { Diagnostic } from "@/lib/types";
+import type { ChatMessage, Diagnostic } from "@/lib/types";
+
+const STORAGE_KEY = "cogniwis:pending-conversation";
+const DIAG_STORAGE_KEY = "cogniwis:diagnostic";
+
+interface PendingConversation {
+  messages: ChatMessage[];
+  recap: string | null;
+}
 
 function DiagnosticInner() {
   const params = useSearchParams();
@@ -22,9 +31,60 @@ function DiagnosticInner() {
     let cancelled = false;
 
     async function load() {
+      // 1. Diagnostic déjà en cache (session courante) → on l'affiche direct.
+      try {
+        const cached = sessionStorage.getItem(DIAG_STORAGE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as Diagnostic;
+          if (!cancelled) {
+            setDiagnostic(parsed);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {}
+
+      // 2. Conversation en attente en sessionStorage → mode anonyme, payload direct.
+      let pending: PendingConversation | null = null;
+      try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        if (raw) pending = JSON.parse(raw) as PendingConversation;
+      } catch {}
+
+      if (pending && pending.messages && pending.messages.length > 0) {
+        try {
+          const res = await fetch("/api/diagnostic", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: pending.messages,
+              recap: pending.recap,
+            }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error ?? "Erreur diagnostic");
+          if (!cancelled) {
+            setDiagnostic(json.diagnostic as Diagnostic);
+            try {
+              sessionStorage.setItem(
+                DIAG_STORAGE_KEY,
+                JSON.stringify(json.diagnostic)
+              );
+            } catch {}
+            setLoading(false);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setError(err instanceof Error ? err.message : "Erreur inattendue");
+            setLoading(false);
+          }
+        }
+        return;
+      }
+
+      // 3. Fallback : mode connecté avec conversation en base.
       const supabase = createClient();
       let cid = conversationId;
-
       if (!cid) {
         const { data } = await supabase
           .from("conversations")
@@ -35,13 +95,13 @@ function DiagnosticInner() {
           .maybeSingle();
         cid = data?.id ?? null;
       }
-
       if (!cid) {
-        setError("Aucune conversation prête pour un diagnostic. Passe par le chat d'abord.");
+        setError(
+          "Aucune conversation prête pour un diagnostic. Passe par le chat d'abord."
+        );
         setLoading(false);
         return;
       }
-
       try {
         const res = await fetch("/api/diagnostic", {
           method: "POST",
@@ -68,9 +128,22 @@ function DiagnosticInner() {
     };
   }, [conversationId]);
 
+  const goToAction = () => {
+    if (!diagnostic) return;
+    if (diagnostic.id?.startsWith?.("anon-")) {
+      // On garde le diag déjà en session pour /action.
+      try {
+        sessionStorage.setItem(DIAG_STORAGE_KEY, JSON.stringify(diagnostic));
+      } catch {}
+      router.push("/action");
+    } else {
+      router.push(`/action?diagnostic=${diagnostic.id}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface">
-      {loading && <AiLoader text="Diagnostic" />}
+      {loading && <DiagnosticLoader done={!!diagnostic} />}
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-10">
         <div className="mb-6">
           <ProgressStepper active="Diagnostic" />
@@ -78,15 +151,21 @@ function DiagnosticInner() {
 
         {error && (
           <div className="bg-status-critical-bg border border-status-critical/30 rounded-card p-4 text-status-critical">
-            {error}
+            <div>{error}</div>
+            <div className="mt-3">
+              <Link
+                href="/chat"
+                className="inline-block px-4 py-2 rounded-card bg-accent text-white font-semibold text-sm"
+              >
+                Retour au chat
+              </Link>
+            </div>
           </div>
         )}
 
         {diagnostic && (
           <div className="space-y-6">
-            <OniMessage
-              content={diagnostic.verdict}
-            />
+            <OniMessage content={diagnostic.verdict} />
 
             {diagnostic.reframing && (
               <div className="bg-surface-1 border border-gray-200 border-l-4 border-l-accent rounded-card p-4 shadow-card">
@@ -102,8 +181,7 @@ function DiagnosticInner() {
                       Ce que tu as dit vouloir
                     </div>
                     <div className="text-gray-800 mt-1">
-                      {(diagnostic as unknown as { declared_objective?: string })
-                        .declared_objective ?? "—"}
+                      {diagnostic.declared_objective ?? "—"}
                     </div>
                   </div>
                   <div className="bg-accent-light rounded-card p-3">
@@ -111,8 +189,7 @@ function DiagnosticInner() {
                       Ce que tu veux vraiment
                     </div>
                     <div className="text-gray-900 mt-1">
-                      {(diagnostic as unknown as { real_objective?: string })
-                        .real_objective ?? "—"}
+                      {diagnostic.real_objective ?? "—"}
                     </div>
                   </div>
                 </div>
@@ -167,9 +244,7 @@ function DiagnosticInner() {
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() =>
-                  router.push(`/action?diagnostic=${diagnostic.id}`)
-                }
+                onClick={goToAction}
                 className="px-5 py-3 rounded-card bg-accent text-white font-semibold hover:bg-accent-dark transition-colors"
               >
                 C&apos;est parti, on commence →

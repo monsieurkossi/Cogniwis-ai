@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/diagnostic", "/action"];
+// Auth-gate désactivé pour le mode "flux complet sans inscription".
+// Le chat, le diagnostic et l'action fonctionnent en anonyme via sessionStorage.
+const PROTECTED_PREFIXES: string[] = [];
 const AUTH_ROUTES = ["/auth/login", "/auth/signup"];
 
 export async function updateSession(request: NextRequest) {

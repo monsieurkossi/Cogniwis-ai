@@ -10,7 +10,10 @@ import { ActionCard } from "@/components/ActionCard";
 import { DeliverableCard } from "@/components/DeliverableCard";
 import { OniFab } from "@/components/OniFab";
 import { createClient } from "@/lib/supabase/client";
-import type { Action, ClientTouch } from "@/lib/types";
+import type { Action, ClientTouch, Diagnostic } from "@/lib/types";
+
+const DIAG_STORAGE_KEY = "cogniwis:diagnostic";
+const ACTION_STORAGE_KEY = "cogniwis:action";
 
 function ActionInner() {
   const params = useSearchParams();
@@ -23,6 +26,55 @@ function ActionInner() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      // 1. Action déjà en cache
+      try {
+        const cached = sessionStorage.getItem(ACTION_STORAGE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as Action;
+          if (!cancelled) {
+            setAction(parsed);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {}
+
+      // 2. Diagnostic anonyme en sessionStorage → mode payload direct
+      let anonDiag: Diagnostic | null = null;
+      try {
+        const raw = sessionStorage.getItem(DIAG_STORAGE_KEY);
+        if (raw) anonDiag = JSON.parse(raw) as Diagnostic;
+      } catch {}
+
+      if (anonDiag) {
+        try {
+          const res = await fetch("/api/action", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ diagnostic: anonDiag }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error ?? "Erreur");
+          if (!cancelled) {
+            setAction(json.action as Action);
+            try {
+              sessionStorage.setItem(
+                ACTION_STORAGE_KEY,
+                JSON.stringify(json.action)
+              );
+            } catch {}
+            setLoading(false);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setError(err instanceof Error ? err.message : "Erreur inattendue");
+            setLoading(false);
+          }
+        }
+        return;
+      }
+
+      // 3. Fallback : mode connecté
       const supabase = createClient();
       let did = diagnosticId;
 
@@ -69,22 +121,30 @@ function ActionInner() {
 
   const persistClients = async (clients: ClientTouch[]) => {
     if (!action) return;
-    setAction({ ...action, clients });
-    await fetch("/api/action", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actionId: action.id, clients }),
-    });
+    const next = { ...action, clients };
+    setAction(next);
+    try {
+      sessionStorage.setItem(ACTION_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+    if (!action.id.startsWith("anon-")) {
+      await fetch("/api/action", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actionId: action.id, clients }),
+      });
+    }
   };
 
   const markCompleted = async () => {
     if (!action) return;
     setCompleted(true);
-    await fetch("/api/action", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actionId: action.id, status: "completed" }),
-    });
+    if (!action.id.startsWith("anon-")) {
+      await fetch("/api/action", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actionId: action.id, status: "completed" }),
+      });
+    }
   };
 
   return (

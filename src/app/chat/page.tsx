@@ -9,26 +9,38 @@ import { ChatInput } from "@/components/ChatInput";
 import { ModeSelector } from "@/components/ModeSelector";
 import { SituationCards } from "@/components/SituationCards";
 import { RecapCard } from "@/components/RecapCard";
-import { createClient } from "@/lib/supabase/client";
 import type { ChatMessage, InteractionMode, OniGender } from "@/lib/types";
 
 const ONI_INTRO_MALE = `Salut, moi c'est Oni. Je suis là pour t'aider à y voir clair sur ton activité et décider quoi faire ensuite.
 
 Dis-moi ce qui te préoccupe en ce moment — ou clique une des situations en dessous si t'as pas envie d'écrire un pavé.`;
 
-const ONI_INTRO_FEMALE = `Salut, moi c'est Oni. Je suis là pour t'aider à y voir clair sur ton activité et décider quoi faire ensuite.
+const ONI_INTRO_FEMALE = ONI_INTRO_MALE;
 
-Dis-moi ce qui te préoccupe en ce moment — ou clique une des situations en dessous si t'as pas envie d'écrire un pavé.`;
+// Patterns naturels + le mot-clé RECAP prescrit dans le system prompt d'Oni.
+const RECAP_PATTERNS = [
+  /\brecap\b/i,
+  /voilà ce que j'ai compris/i,
+  /voici ce que j'ai compris/i,
+  /voici ce que je retiens/i,
+  /je te fais un (?:petit )?(?:récap|résumé)/i,
+  /laisse-moi récapituler/i,
+  /résumé de notre/i,
+  /si j'ai bien compris/i,
+  /pour résumer/i,
+];
 
-function extractRecap(text: string): string | null {
-  const match = text.match(/RECAP[\s\S]*?(?=\n\n|$)/i);
-  if (!match) return null;
-  return match[0].trim();
+function detectRecap(text: string): string | null {
+  const hit = RECAP_PATTERNS.some((re) => re.test(text));
+  if (!hit) return null;
+  // Prend tout le message comme récap — l'UI l'affiche avec les boutons de validation.
+  return text.trim();
 }
+
+const STORAGE_KEY = "cogniwis:pending-conversation";
 
 export default function ChatPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [gender, setGender] = useState<OniGender>("il");
   const [mode, setMode] = useState<InteractionMode>("text");
@@ -40,6 +52,7 @@ export default function ChatPage() {
   const [savingRecap, setSavingRecap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const startedAt = useRef<string>(new Date().toISOString());
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -53,6 +66,7 @@ export default function ChatPage() {
   const sendMessage = useCallback(
     async (content: string) => {
       setError(null);
+      setRecap(null); // toute nouvelle réponse invalide un récap précédent
       const nextMessages: ChatMessage[] = [
         ...messages,
         { role: "user", content, timestamp: new Date().toISOString() },
@@ -87,7 +101,7 @@ export default function ChatPage() {
         ];
         setMessages(finalMessages);
         setStreamBuffer("");
-        const detectedRecap = extractRecap(acc);
+        const detectedRecap = detectRecap(acc);
         if (detectedRecap) {
           setRecap(detectedRecap);
         }
@@ -100,53 +114,40 @@ export default function ChatPage() {
     [messages]
   );
 
-  const confirmRecap = async () => {
+  const confirmRecap = () => {
     if (!recap) return;
     setSavingRecap(true);
     setError(null);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      try {
-        localStorage.setItem(
-          "cogniwis:pending-conversation",
-          JSON.stringify({ messages, recap })
-        );
-      } catch {
-        // ignore quota
-      }
-      router.push("/auth/signup?redirectTo=/diagnostic");
-      return;
-    }
-
-    const { data: convo, error: convoErr } = await supabase
-      .from("conversations")
-      .insert({
-        user_id: user.id,
+    // Flux sans inscription : on stocke la conversation en sessionStorage
+    // puis on file droit au diagnostic. L'auth reste dispo pour plus tard.
+    try {
+      const payload = {
         messages,
         recap,
-        status: "diagnostic_ready",
-      })
-      .select("id")
-      .single();
-
-    if (convoErr || !convo) {
-      setError(convoErr?.message ?? "Impossible de sauvegarder la conversation");
-      setSavingRecap(false);
-      return;
+        startedAt: startedAt.current,
+        oniGender: gender,
+        interactionMode: mode,
+      };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      // Compat avec l'ancien flux signup qui lit localStorage.
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, recap }));
+    } catch {
+      // ignore quota
     }
 
-    router.push(`/diagnostic?conversation=${convo.id}`);
+    router.push("/diagnostic");
   };
 
   const editRecap = () => {
     setRecap(null);
-    sendMessage(
-      "En fait, j'ai un point à corriger dans le récap. Repose-moi la question là-dessus."
-    );
+    // On rend la main à l'utilisateur — il tape sa correction lui-même.
+    setTimeout(() => {
+      const input = document.querySelector<HTMLTextAreaElement>(
+        "textarea, input[type='text']"
+      );
+      input?.focus();
+    }, 50);
   };
 
   return (
@@ -262,7 +263,12 @@ export default function ChatPage() {
             <div className="pt-4 border-t border-gray-200">
               <ChatInput
                 onSend={sendMessage}
-                disabled={streaming || savingRecap}
+                disabled={streaming || savingRecap || !!recap}
+                placeholder={
+                  recap
+                    ? "Valide ou corrige le récap ci-dessus pour continuer…"
+                    : undefined
+                }
               />
             </div>
           </div>

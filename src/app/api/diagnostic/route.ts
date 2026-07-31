@@ -33,10 +33,87 @@ function normalizeDiagnostic(raw: DiagnosticPayload): DiagnosticPayload {
   return { ...raw, pillars };
 }
 
+interface DiagnosticRequestBody {
+  conversationId?: string;
+  messages?: ChatMessage[];
+  recap?: string | null;
+}
+
+async function generateDiagnostic(
+  conversationMessages: ChatMessage[],
+  recap: string | null
+): Promise<{ diagnostic: DiagnosticPayload } | { error: string; raw?: string; status: number }> {
+  if (conversationMessages.length === 0 && !recap) {
+    return { error: "conversation vide", status: 400 };
+  }
+  const anthropic = getAnthropic();
+  const messages = [
+    ...conversationMessages.map((m) => ({ role: m.role, content: m.content })),
+    ...(recap
+      ? [
+          {
+            role: "user" as const,
+            content: `Récap validé :\n\n${recap}`,
+          },
+        ]
+      : []),
+    { role: "user" as const, content: DIAGNOSTIC_INSTRUCTION },
+  ];
+
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: ONI_MODEL,
+      max_tokens: 4096,
+      system: ONI_SYSTEM_PROMPT,
+      messages,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "erreur Anthropic";
+    return { error: message, status: 500 };
+  }
+
+  const textBlock = response.content.find((c) => c.type === "text");
+  const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
+  try {
+    const parsed = JSON.parse(stripJsonFences(raw)) as DiagnosticPayload;
+    return { diagnostic: normalizeDiagnostic(parsed) };
+  } catch {
+    return { error: "Réponse Oni non parsable en JSON", raw, status: 502 };
+  }
+}
+
 export async function POST(request: NextRequest) {
-  const { conversationId } = (await request.json()) as { conversationId?: string };
+  const body = (await request.json()) as DiagnosticRequestBody;
+
+  // Mode anonyme : payload direct, pas d'auth, pas de DB
+  if (body.messages && body.messages.length > 0) {
+    const result = await generateDiagnostic(body.messages, body.recap ?? null);
+    if ("error" in result) {
+      return Response.json(
+        { error: result.error, raw: result.raw },
+        { status: result.status }
+      );
+    }
+    // On renvoie un id éphémère pour rester compatible avec les composants aval.
+    return Response.json({
+      diagnostic: {
+        id: `anon-${Date.now()}`,
+        user_id: null,
+        conversation_id: null,
+        cycle_number: 1,
+        created_at: new Date().toISOString(),
+        ...result.diagnostic,
+      },
+      reused: false,
+      anonymous: true,
+    });
+  }
+
+  // Mode connecté : conversationId → Supabase
+  const conversationId = body.conversationId;
   if (!conversationId) {
-    return Response.json({ error: "conversationId required" }, { status: 400 });
+    return Response.json({ error: "conversationId ou messages requis" }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -47,7 +124,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Reuse existing diagnostic if present
   const { data: existing } = await supabase
     .from("diagnostics")
     .select("*")
@@ -73,46 +149,14 @@ export async function POST(request: NextRequest) {
   }
 
   const conversationMessages = (convo.messages as ChatMessage[]) ?? [];
-  const anthropic = getAnthropic();
-
-  const messages = [
-    ...conversationMessages.map((m) => ({ role: m.role, content: m.content })),
-    ...(convo.recap
-      ? [
-          {
-            role: "user" as const,
-            content: `Récap validé :\n\n${convo.recap}`,
-          },
-        ]
-      : []),
-    { role: "user" as const, content: DIAGNOSTIC_INSTRUCTION },
-  ];
-
-  let response;
-  try {
-    response = await anthropic.messages.create({
-      model: ONI_MODEL,
-      max_tokens: 4096,
-      system: ONI_SYSTEM_PROMPT,
-      messages,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "erreur Anthropic";
-    return Response.json({ error: message }, { status: 500 });
-  }
-
-  const textBlock = response.content.find((c) => c.type === "text");
-  const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
-  let parsed: DiagnosticPayload;
-  try {
-    parsed = JSON.parse(stripJsonFences(raw)) as DiagnosticPayload;
-  } catch {
+  const result = await generateDiagnostic(conversationMessages, convo.recap ?? null);
+  if ("error" in result) {
     return Response.json(
-      { error: "Réponse Oni non parsable en JSON", raw },
-      { status: 502 }
+      { error: result.error, raw: result.raw },
+      { status: result.status }
     );
   }
-  const diagnostic = normalizeDiagnostic(parsed);
+  const diagnostic = result.diagnostic;
 
   const { data: inserted, error: insertErr } = await supabase
     .from("diagnostics")
@@ -135,7 +179,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: insertErr.message }, { status: 500 });
   }
 
-  // Refresh profile with declared/real objectives
   await supabase
     .from("profiles")
     .update({
