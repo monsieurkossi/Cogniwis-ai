@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { OniMessage } from "@/components/OniMessage";
@@ -27,22 +27,29 @@ function DiagnosticInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(
+    async (opts?: { force?: boolean }) => {
+      const force = !!opts?.force;
+      setError(null);
+      setLoading(true);
 
-    async function load() {
-      // 1. Diagnostic déjà en cache (session courante) → on l'affiche direct.
-      try {
-        const cached = sessionStorage.getItem(DIAG_STORAGE_KEY);
-        if (cached) {
-          const parsed = JSON.parse(cached) as Diagnostic;
-          if (!cancelled) {
+      // 1. Diagnostic déjà en cache (session courante) → on l'affiche direct,
+      //    sauf si on force un retry.
+      if (!force) {
+        try {
+          const cached = sessionStorage.getItem(DIAG_STORAGE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached) as Diagnostic;
             setDiagnostic(parsed);
             setLoading(false);
             return;
           }
-        }
-      } catch {}
+        } catch {}
+      } else {
+        try {
+          sessionStorage.removeItem(DIAG_STORAGE_KEY);
+        } catch {}
+      }
 
       // 2. Conversation en attente en sessionStorage → mode anonyme, payload direct.
       let pending: PendingConversation | null = null;
@@ -63,21 +70,19 @@ function DiagnosticInner() {
           });
           const json = await res.json();
           if (!res.ok) throw new Error(json.error ?? "Erreur diagnostic");
-          if (!cancelled) {
-            setDiagnostic(json.diagnostic as Diagnostic);
-            try {
-              sessionStorage.setItem(
-                DIAG_STORAGE_KEY,
-                JSON.stringify(json.diagnostic)
-              );
-            } catch {}
-            setLoading(false);
-          }
-        } catch (err) {
-          if (!cancelled) {
-            setError(err instanceof Error ? err.message : "Erreur inattendue");
-            setLoading(false);
-          }
+          setDiagnostic(json.diagnostic as Diagnostic);
+          try {
+            sessionStorage.setItem(
+              DIAG_STORAGE_KEY,
+              JSON.stringify(json.diagnostic)
+            );
+          } catch {}
+          setLoading(false);
+        } catch {
+          // On garde le message technique dans la console via le server log,
+          // et on affiche un message humain à l'utilisateur.
+          setError("retry");
+          setLoading(false);
         }
         return;
       }
@@ -96,9 +101,7 @@ function DiagnosticInner() {
         cid = data?.id ?? null;
       }
       if (!cid) {
-        setError(
-          "Aucune conversation prête pour un diagnostic. Passe par le chat d'abord."
-        );
+        setError("no-conversation");
         setLoading(false);
         return;
       }
@@ -110,23 +113,19 @@ function DiagnosticInner() {
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Erreur diagnostic");
-        if (!cancelled) {
-          setDiagnostic(json.diagnostic as Diagnostic);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erreur inattendue");
-          setLoading(false);
-        }
+        setDiagnostic(json.diagnostic as Diagnostic);
+        setLoading(false);
+      } catch {
+        setError("retry");
+        setLoading(false);
       }
-    }
+    },
+    [conversationId]
+  );
 
+  useEffect(() => {
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [conversationId]);
+  }, [load]);
 
   const goToAction = () => {
     if (!diagnostic) return;
@@ -149,17 +148,39 @@ function DiagnosticInner() {
           <ProgressStepper active="Diagnostic" />
         </div>
 
-        {error && (
-          <div className="bg-status-critical-bg border border-status-critical/30 rounded-card p-4 text-status-critical">
-            <div>{error}</div>
-            <div className="mt-3">
-              <Link
-                href="/chat"
-                className="inline-block px-4 py-2 rounded-card bg-accent text-white font-semibold text-sm"
-              >
-                Retour au chat
-              </Link>
-            </div>
+        {error === "no-conversation" && (
+          <div className="bg-surface-1 border border-gray-200 rounded-card p-6 text-center shadow-card">
+            <p className="text-gray-900 font-semibold mb-1">
+              Oni a besoin d&apos;échanger avec toi d&apos;abord
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              Fais une petite conversation avec lui et il pourra te préparer ton
+              diagnostic.
+            </p>
+            <Link
+              href="/chat"
+              className="inline-block px-5 py-2.5 rounded-card bg-accent text-white font-semibold text-sm hover:bg-accent-dark transition-colors"
+            >
+              Aller au chat →
+            </Link>
+          </div>
+        )}
+
+        {error === "retry" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-card p-6 text-center shadow-card">
+            <p className="text-amber-900 font-semibold mb-1">
+              Oni a eu un souci en analysant ton profil
+            </p>
+            <p className="text-sm text-amber-700 mb-4">
+              Ça arrive parfois. On relance l&apos;analyse.
+            </p>
+            <button
+              type="button"
+              onClick={() => load({ force: true })}
+              className="inline-block px-5 py-2.5 rounded-card bg-accent text-white font-semibold text-sm hover:bg-accent-dark transition-colors"
+            >
+              Relancer le diagnostic
+            </button>
           </div>
         )}
 

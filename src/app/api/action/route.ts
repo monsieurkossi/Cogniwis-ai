@@ -6,11 +6,31 @@ import type { ActionPayload, DiagnosticPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-function stripJsonFences(text: string): string {
-  const trimmed = text.trim();
-  const fence = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  if (fence) return fence[1].trim();
-  return trimmed;
+function extractJSON<T = unknown>(text: string): T {
+  const cleaned = text
+    .replace(/```json\s*/g, "")
+    .replace(/```\s*/g, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    const first = cleaned.indexOf("{");
+    const last = cleaned.lastIndexOf("}");
+    if (first === -1 || last === -1 || last <= first) {
+      throw new Error("Aucun JSON trouvé dans la réponse");
+    }
+    const slice = cleaned.substring(first, last + 1);
+    try {
+      return JSON.parse(slice) as T;
+    } catch {
+      const controlChars = new RegExp("[\\u0000-\\u001F]+", "g");
+      const sanitized = slice
+        .replace(controlChars, " ")
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]");
+      return JSON.parse(sanitized) as T;
+    }
+  }
 }
 
 interface ActionRequestBody {
@@ -50,9 +70,19 @@ async function generateAction(
   const textBlock = response.content.find((c) => c.type === "text");
   const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
   try {
-    return { payload: JSON.parse(stripJsonFences(raw)) as ActionPayload };
-  } catch {
-    return { error: "Réponse Oni non parsable en JSON", raw, status: 502 };
+    return { payload: extractJSON<ActionPayload>(raw) };
+  } catch (err) {
+    console.error(
+      "[action] parsing JSON échoué. Réponse brute:",
+      raw.substring(0, 800),
+      "erreur:",
+      err instanceof Error ? err.message : err
+    );
+    return {
+      error: "action_parse_failed",
+      raw: raw.substring(0, 500),
+      status: 502,
+    };
   }
 }
 

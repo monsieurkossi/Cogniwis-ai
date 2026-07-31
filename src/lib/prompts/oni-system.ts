@@ -128,6 +128,10 @@ Si le user n'a pas donné de vrais noms de clients, invente 3 personas plausible
 - Si le user demande quelque chose hors de ton périmètre, tu le redirectes avec humour
 `;
 
-export const DIAGNOSTIC_INSTRUCTION = `Sur la base de la conversation ci-dessus (le récap validé fait foi), produis MAINTENANT le diagnostic en respectant STRICTEMENT le format JSON défini dans ton prompt système. Retourne UNIQUEMENT le JSON, sans texte avant ou après, sans balise markdown. Les 7 piliers doivent être présents dans l'ordre indiqué.`;
+export const DIAGNOSTIC_INSTRUCTION = `Sur la base de la conversation ci-dessus (le récap validé fait foi), produis MAINTENANT le diagnostic en respectant STRICTEMENT le format JSON défini dans ton prompt système. Les 7 piliers doivent être présents dans l'ordre indiqué.
 
-export const ACTION_INSTRUCTION = `Sur la base du diagnostic ci-dessus, génère MAINTENANT l'action concrète de l'étape 1 pour le pilier prioritaire. Retourne UNIQUEMENT le JSON défini dans ton prompt système (format action), sans texte avant ou après, sans balise markdown.`;
+IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON. Pas de texte avant. Pas de texte après. Pas de backticks. Pas de "Voici le diagnostic". Commence directement par { et termine par }. Rien d'autre.`;
+
+export const ACTION_INSTRUCTION = `Sur la base du diagnostic ci-dessus, génère MAINTENANT l'action concrète de l'étape 1 pour le pilier prioritaire au format JSON défini dans ton prompt système (format action).
+
+IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON. Pas de texte avant. Pas de texte après. Pas de backticks. Pas de "Voici l'action". Commence directement par { et termine par }. Rien d'autre.`;
