@@ -378,7 +378,13 @@ function DiagnosticInner() {
           </div>
         )}
       </div>
-      <OniFab />
+      <OniFab
+        pageContext={
+          diagnostic
+            ? `L'utilisateur regarde son diagnostic. Score global ${diagnostic.global_score}/100, pilier prioritaire "${diagnostic.priority_pillar}". Verdict : ${diagnostic.verdict}`
+            : "L'utilisateur est sur la page diagnostic (chargement ou erreur)."
+        }
+      />
     </div>
   );
 }

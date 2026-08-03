@@ -16,7 +16,31 @@ export default async function LandingPage() {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (diag) redirect("/diagnostic");
+
+    if (diag) {
+      // Une action non terminée pour ce diagnostic ? On file droit dessus.
+      const { data: activeAction } = await supabase
+        .from("actions")
+        .select("id")
+        .eq("diagnostic_id", diag.id)
+        .in("status", ["pending", "active"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeAction) redirect(`/action?diagnostic=${diag.id}`);
+      redirect(`/diagnostic?id=${diag.id}`);
+    }
+
+    // Sinon reprendre une conversation en cours si elle existe.
+    const { data: conv } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (conv) redirect(`/chat?conversation=${conv.id}`);
     redirect("/chat");
   }
 

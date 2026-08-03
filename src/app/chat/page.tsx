@@ -9,6 +9,7 @@ import { ChatInput } from "@/components/ChatInput";
 import { ModeSelector } from "@/components/ModeSelector";
 import { SituationCards } from "@/components/SituationCards";
 import { RecapCard } from "@/components/RecapCard";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { ChatMessage, InteractionMode, OniGender } from "@/lib/types";
 
 const ONI_INTRO_MALE = `Salut, moi c'est Oni. Je suis là pour t'aider à y voir clair sur ton activité et décider quoi faire ensuite.
@@ -51,8 +52,23 @@ export default function ChatPage() {
   const [recap, setRecap] = useState<string | null>(null);
   const [savingRecap, setSavingRecap] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedAt = useRef<string>(new Date().toISOString());
+  const voice = useVoiceInput("fr-FR");
+
+  const handleModeChange = (next: InteractionMode) => {
+    if ((next === "voice" || next === "mixed") && !voice.isSupported) {
+      setError(
+        "Ton navigateur ne supporte pas la reconnaissance vocale. Passe sur Chrome pour la voix."
+      );
+      return;
+    }
+    setError(null);
+    if (voice.isListening) voice.stopListening();
+    voice.resetTranscript();
+    setMode(next);
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -195,7 +211,11 @@ export default function ChatPage() {
               <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">
                 Comment veux-tu échanger ?
               </div>
-              <ModeSelector mode={mode} onChange={setMode} />
+              <ModeSelector
+                mode={mode}
+                onChange={handleModeChange}
+                voiceSupported={voice.isSupported}
+              />
             </div>
 
             <div>
@@ -206,9 +226,46 @@ export default function ChatPage() {
             </div>
 
             <div>
-              <ChatInput onSend={sendMessage} disabled={streaming} />
+              {mode === "voice" ? (
+                <VoiceStage
+                  streaming={streaming}
+                  voice={voice}
+                  onSend={sendMessage}
+                />
+              ) : (
+                <ChatInput
+                  onSend={(msg) => {
+                    sendMessage(msg);
+                    voice.resetTranscript();
+                  }}
+                  disabled={streaming}
+                  value={
+                    mode === "mixed"
+                      ? voice.transcript || inputValue
+                      : inputValue
+                  }
+                  onValueChange={(v) => {
+                    setInputValue(v);
+                    if (mode === "mixed") voice.resetTranscript();
+                  }}
+                  voice={
+                    mode === "mixed" && voice.isSupported
+                      ? {
+                          isListening: voice.isListening,
+                          liveTranscript: voice.interim,
+                          onToggle: () =>
+                            voice.isListening
+                              ? voice.stopListening()
+                              : voice.startListening(),
+                        }
+                      : undefined
+                  }
+                />
+              )}
               <p className="text-xs text-gray-400 mt-2 text-center">
-                Entrée pour envoyer · Maj + Entrée pour aller à la ligne
+                {mode === "voice"
+                  ? "Clique le micro pour parler, reclique pour envoyer."
+                  : "Entrée pour envoyer · Maj + Entrée pour aller à la ligne"}
               </p>
             </div>
 
@@ -261,19 +318,113 @@ export default function ChatPage() {
             </div>
 
             <div className="pt-4 border-t border-gray-200">
-              <ChatInput
-                onSend={sendMessage}
-                disabled={streaming || savingRecap || !!recap}
-                placeholder={
-                  recap
-                    ? "Valide ou corrige le récap ci-dessus pour continuer…"
-                    : undefined
-                }
-              />
+              {mode === "voice" && !recap ? (
+                <VoiceStage
+                  streaming={streaming || savingRecap}
+                  voice={voice}
+                  onSend={sendMessage}
+                />
+              ) : (
+                <ChatInput
+                  onSend={(msg) => {
+                    sendMessage(msg);
+                    voice.resetTranscript();
+                  }}
+                  disabled={streaming || savingRecap || !!recap}
+                  placeholder={
+                    recap
+                      ? "Valide ou corrige le récap ci-dessus pour continuer…"
+                      : undefined
+                  }
+                  value={
+                    mode === "mixed"
+                      ? voice.transcript || inputValue
+                      : inputValue
+                  }
+                  onValueChange={(v) => {
+                    setInputValue(v);
+                    if (mode === "mixed") voice.resetTranscript();
+                  }}
+                  voice={
+                    mode === "mixed" && voice.isSupported && !recap
+                      ? {
+                          isListening: voice.isListening,
+                          liveTranscript: voice.interim,
+                          onToggle: () =>
+                            voice.isListening
+                              ? voice.stopListening()
+                              : voice.startListening(),
+                        }
+                      : undefined
+                  }
+                />
+              )}
             </div>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface VoiceStageProps {
+  streaming: boolean;
+  voice: ReturnType<typeof useVoiceInput>;
+  onSend: (msg: string) => void;
+}
+
+function VoiceStage({ streaming, voice, onSend }: VoiceStageProps) {
+  const handleClick = () => {
+    if (streaming) return;
+    if (voice.isListening) {
+      voice.stopListening();
+      const text = (voice.transcript + " " + voice.interim).trim();
+      if (text) {
+        onSend(text);
+        voice.resetTranscript();
+      }
+    } else {
+      voice.startListening();
+    }
+  };
+
+  const live = (voice.transcript + " " + voice.interim).trim();
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-4">
+      {live && (
+        <div className="w-full max-w-xl bg-surface-1 border border-gray-200 rounded-card p-3 text-sm text-gray-700 italic">
+          {live}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={streaming}
+        className={`w-20 h-20 rounded-full flex items-center justify-center transition-all text-white ${
+          voice.isListening
+            ? "bg-red-500 animate-pulse scale-105"
+            : "bg-accent hover:bg-accent-dark hover:scale-105"
+        } disabled:bg-gray-300 disabled:cursor-not-allowed`}
+        aria-label={voice.isListening ? "Envoyer" : "Parler"}
+      >
+        {voice.isListening ? (
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+        ) : (
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" x2="12" y1="19" y2="22" />
+          </svg>
+        )}
+      </button>
+      <p className="text-sm text-gray-500">
+        {voice.isListening
+          ? "Je t'écoute… Clique pour envoyer"
+          : "Clique pour parler"}
+      </p>
     </div>
   );
 }

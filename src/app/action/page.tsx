@@ -801,7 +801,13 @@ function ActionInner() {
           </div>
         )}
       </div>
-      <OniFab />
+      <OniFab
+        pageContext={
+          action
+            ? `L'utilisateur est en train d'exécuter une action sur le pilier "${action.pillar}" (étape ${action.step_number}/${action.total_steps}). Titre : "${action.title}". État actuel : ${state}.`
+            : "L'utilisateur est sur la page action (chargement ou erreur)."
+        }
+      />
     </div>
   );
 }

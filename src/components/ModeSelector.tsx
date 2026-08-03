@@ -5,6 +5,8 @@ import type { InteractionMode } from "@/lib/types";
 interface Props {
   mode: InteractionMode;
   onChange: (mode: InteractionMode) => void;
+  /** Si false, on grise "Parler" et "Mixte" (navigateur sans Web Speech). */
+  voiceSupported?: boolean;
 }
 
 const MODES: {
@@ -48,32 +50,38 @@ const MODES: {
   },
 ];
 
-export function ModeSelector({ mode, onChange }: Props) {
+export function ModeSelector({ mode, onChange, voiceSupported = true }: Props) {
   return (
     <div className="grid grid-cols-3 gap-3">
       {MODES.map((m) => {
         const active = mode === m.id;
+        const needsVoice = m.id === "voice" || m.id === "mixed";
+        const disabled = needsVoice && !voiceSupported;
         return (
           <button
             key={m.id}
             type="button"
-            onClick={() => onChange(m.id)}
+            onClick={() => !disabled && onChange(m.id)}
+            disabled={disabled}
+            title={disabled ? "Ton navigateur ne supporte pas la reconnaissance vocale. Utilise Chrome." : undefined}
             className={`flex flex-col items-center gap-2 px-4 py-4 rounded-card border transition-all text-left ${
-              active
-                ? "bg-accent-light border-accent text-accent-dark shadow-card"
-                : "bg-surface-1 border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-surface-2"
+              disabled
+                ? "bg-surface-1 border-gray-200 text-gray-400 opacity-50 cursor-not-allowed"
+                : active
+                  ? "bg-accent-light border-accent text-accent-dark shadow-card"
+                  : "bg-surface-1 border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-surface-2"
             }`}
           >
             <div
               className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                active ? "bg-accent text-white" : "bg-surface-2 text-gray-500"
+                active && !disabled ? "bg-accent text-white" : "bg-surface-2 text-gray-500"
               }`}
             >
               {m.icon}
             </div>
             <div className="font-semibold text-sm">{m.label}</div>
             <div className="text-xs text-gray-500 text-center leading-tight">
-              {m.hint}
+              {disabled ? "Navigateur non compatible" : m.hint}
             </div>
           </button>
         );
