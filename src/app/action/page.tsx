@@ -11,6 +11,8 @@ import { DeliverableCard } from "@/components/DeliverableCard";
 import { OniFab } from "@/components/OniFab";
 import { createClient } from "@/lib/supabase/client";
 import type { Action, ClientTouch, Diagnostic } from "@/lib/types";
+import type { VerbatimAnalysis } from "@/app/api/analyze-verbatims/route";
+import type { StepperStep } from "@/components/ProgressStepper";
 
 const DIAG_STORAGE_KEY = "cogniwis:diagnostic";
 const ACTION_STORAGE_KEY = "cogniwis:action";
@@ -30,6 +32,10 @@ function ActionInner() {
   const [notYet, setNotYet] = useState<Record<string, boolean>>({});
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<VerbatimAnalysis | null>(
+    null
+  );
+  const [continued, setContinued] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,9 +198,9 @@ function ActionInner() {
           const text = (verbatims[key] ?? "").trim();
           if (!text) return null;
           return {
-            clientName: c.name,
+            contact_name: c.name,
             channel: c.channel,
-            response: text,
+            text,
           };
         })
         .filter(Boolean),
@@ -205,26 +211,58 @@ function ActionInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const raw = await res.text();
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.analysis) {
         throw new Error(
-          raw.length > 200
-            ? `HTTP ${res.status} — endpoint indisponible`
-            : raw || `HTTP ${res.status}`
+          json?.error ?? json?.debug ?? `HTTP ${res.status}`
         );
       }
-      router.push("/diagnostic");
+      setAnalysisResult(json.analysis as VerbatimAnalysis);
+      // Persiste les verbatims sur les clients (statut answered + texte).
+      const patchedClients = clients.map((c, i) => {
+        const key = String(i);
+        if (notYet[key]) return c;
+        const text = (verbatims[key] ?? "").trim();
+        if (!text) return c;
+        return { ...c, status: "answered" as const, response_text: text };
+      });
+      void persistClients(patchedClients);
     } catch (err) {
       setAnalyzeError(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
       setAnalyzing(false);
     }
+  };
+
+  const tagsByContact = new Map<string, string[]>(
+    (analysisResult?.tags_per_contact ?? []).map((t) => [
+      t.name.trim().toLowerCase(),
+      t.tags ?? [],
+    ])
+  );
+
+  // Stepper : Diagnostic ✓, Action actif → Suivi actif après analyse →
+  // Réajustement actif après « On continue ».
+  const stepperActive: StepperStep = continued
+    ? "Réajustement"
+    : analysisResult
+      ? "Suivi"
+      : "Action";
+  const stepperDone: StepperStep[] = continued
+    ? ["Diagnostic", "Action", "Suivi"]
+    : analysisResult
+      ? ["Diagnostic", "Action"]
+      : ["Diagnostic"];
+
+  const handleDoubts = () => {
+    router.push("/chat");
   };
 
   return (
     <div className="min-h-screen bg-surface">
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-10">
         <div className="mb-6">
-          <ProgressStepper active="Action" done={["Diagnostic"]} />
+          <ProgressStepper active={stepperActive} done={stepperDone} />
         </div>
 
         {loading && (
@@ -269,7 +307,7 @@ function ActionInner() {
               <DeliverableCard content={action.deliverable} />
             )}
 
-            {allSent && !completed && !showVerbatimForm && !remindLater && (
+            {allSent && !completed && !analysisResult && !showVerbatimForm && !remindLater && (
               <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2">
                 <div className="flex items-start gap-3 mb-6">
                   <OniAvatar size={32} />
@@ -300,7 +338,7 @@ function ActionInner() {
               </div>
             )}
 
-            {allSent && !completed && !showVerbatimForm && remindLater && (
+            {allSent && !completed && !analysisResult && !showVerbatimForm && remindLater && (
               <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2">
                 <div className="flex items-start gap-3 mb-6">
                   <OniAvatar size={32} />
@@ -324,7 +362,7 @@ function ActionInner() {
               </div>
             )}
 
-            {allSent && !completed && showVerbatimForm && (
+            {allSent && !completed && !analysisResult && showVerbatimForm && (
               <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-4">
                 <p className="text-sm text-gray-600">
                   Colle la réponse de chaque personne mot pour mot. Coche
@@ -415,7 +453,171 @@ function ActionInner() {
               </div>
             )}
 
-            {completed && (
+            {analyzing && !analysisResult && (
+              <div className="bg-white border border-gray-200 rounded-xl p-8 mt-2 flex flex-col items-center text-center">
+                <OniAvatar size={72} speaking />
+                <p className="mt-4 text-gray-700 font-medium">
+                  Oni analyse les réponses…
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Recherche de patterns et convergence dans les verbatims.
+                </p>
+              </div>
+            )}
+
+            {analysisResult && (
+              <div className="space-y-6">
+                {/* A) Message Oni */}
+                <OniMessage content={analysisResult.analysis_oni} />
+
+                {/* B) Verbatims collectés */}
+                <div className="bg-surface-1 border border-gray-200 rounded-card overflow-hidden">
+                  <div className="px-5 py-3 border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                    Verbatims collectés
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {clients.map((c, i) => {
+                      const key = String(i);
+                      const text = (verbatims[key] ?? c.response_text ?? "").trim();
+                      if (notYet[key] || !text) return null;
+                      const tags =
+                        tagsByContact.get(c.name.trim().toLowerCase()) ?? [];
+                      return (
+                        <div key={key} className="p-5 flex gap-3">
+                          <div className="h-10 w-10 rounded-full bg-accent-light text-accent-dark flex items-center justify-center font-semibold text-sm shrink-0">
+                            {c.name
+                              .split(" ")
+                              .map((s) => s[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap text-sm">
+                              <span className="font-semibold text-gray-900">
+                                {c.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                · {c.channel}
+                              </span>
+                            </div>
+                            <blockquote className="mt-2 border-l-2 border-accent pl-3 text-sm text-gray-700 italic whitespace-pre-wrap">
+                              {text}
+                            </blockquote>
+                            {tags.length > 0 && (
+                              <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+                                {tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="text-xs text-accent-dark bg-accent-light rounded-pill px-2 py-0.5"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* C) Pattern détecté */}
+                {analysisResult.convergence && (
+                  <div className="bg-accent-light/25 border border-accent/20 rounded-card p-5">
+                    <div className="flex items-start gap-3">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-accent-dark mt-0.5 shrink-0"
+                      >
+                        <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2v.3h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2Z" />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs uppercase tracking-wide text-accent-dark font-semibold">
+                          Pattern détecté par Oni
+                        </div>
+                        {analysisResult.patterns.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {analysisResult.patterns.map((p) => (
+                              <span
+                                key={p}
+                                className="text-xs text-accent-dark bg-white border border-accent/20 rounded-pill px-2 py-0.5"
+                              >
+                                {p}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {analysisResult.angle && (
+                          <p className="mt-3 text-sm font-semibold text-gray-900 leading-relaxed">
+                            {analysisResult.angle}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* D) Prochaine action débloquée */}
+                <div className="bg-surface-1 border border-accent shadow-card rounded-card p-5">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">
+                    Prochaine action débloquée
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {analysisResult.next_action.title}
+                  </h3>
+                  <p className="text-sm text-gray-700 mt-1 leading-relaxed">
+                    {analysisResult.next_action.description}
+                  </p>
+                  {analysisResult.next_action.kpi && (
+                    <div className="mt-4 bg-surface-2 rounded-card p-3">
+                      <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                        KPI
+                      </div>
+                      <div className="text-sm text-gray-900 mt-0.5">
+                        {analysisResult.next_action.kpi}
+                      </div>
+                    </div>
+                  )}
+                  {!continued ? (
+                    <div className="mt-5 flex items-center gap-3 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleDoubts}
+                        className="text-sm font-medium px-4 py-2 rounded-card border border-gray-200 text-gray-700 hover:bg-surface-2 transition-colors"
+                      >
+                        J&apos;ai des doutes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setContinued(true)}
+                        className="text-sm font-semibold px-4 py-2 rounded-card bg-accent text-white hover:bg-accent-dark transition-colors"
+                      >
+                        On continue →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-5 flex items-center gap-3 text-sm text-status-solid">
+                      <div className="h-6 w-6 rounded-full bg-status-solid text-white flex items-center justify-center text-xs">
+                        ✓
+                      </div>
+                      Prochaine action lancée. Envoie-toi au boulot — je reste
+                      en veille.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {completed && !analysisResult && (
               <div className="bg-status-solid-bg border border-status-solid/30 rounded-card p-4 flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-status-solid text-white flex items-center justify-center">
                   ✓
