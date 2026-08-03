@@ -9,6 +9,7 @@ import { ProgressStepper } from "@/components/ProgressStepper";
 import { ActionCard } from "@/components/ActionCard";
 import { DeliverableCard } from "@/components/DeliverableCard";
 import { OniFab } from "@/components/OniFab";
+import { ProgressTracker } from "@/components/ProgressTracker";
 import { createClient } from "@/lib/supabase/client";
 import type { Action, ClientTouch, Diagnostic } from "@/lib/types";
 import type { VerbatimAnalysis } from "@/app/api/analyze-verbatims/route";
@@ -215,6 +216,21 @@ function ActionInner() {
   };
 
   const clients = action?.clients ?? [];
+
+  // Dérivations pour le ProgressTracker. Pas de nouvelle colonne BDD : tout
+  // se déduit de clients[].status et de kpi_target.
+  const deliverablesSent = clients.filter(
+    (c) => c.status === "sent" || c.status === "answered"
+  ).length;
+  const deliverablesTotal = clients.length;
+  const answeredCount = clients.filter((c) => c.status === "answered").length;
+  const kpiTargetNumber = (() => {
+    const raw = action?.kpi_target ?? "";
+    const match = raw.match(/\d+/);
+    if (match) return Math.max(1, parseInt(match[0], 10));
+    if (deliverablesTotal > 0) return Math.max(2, Math.ceil(deliverablesTotal / 2));
+    return 0;
+  })();
 
   const filledVerbatimKeys = Object.keys(verbatims).filter((k) => {
     if (notYet[k]) return false;
@@ -423,6 +439,21 @@ function ActionInner() {
 
         {action && state !== "loading" && state !== "error" && (
           <div className="space-y-6">
+            <ProgressTracker
+              pillarName={action.pillar}
+              currentStep={action.step_number}
+              totalSteps={action.total_steps}
+              deliverablesSent={deliverablesSent}
+              deliverablesTotal={deliverablesTotal}
+              kpiLabel="Réponses reçues"
+              kpiCurrent={
+                answeredCount > 0
+                  ? answeredCount
+                  : filledVerbatimKeys.length
+              }
+              kpiTarget={kpiTargetNumber}
+            />
+
             {state !== "generating_next" && (
               <>
                 <OniMessage
