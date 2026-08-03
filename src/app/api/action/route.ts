@@ -5,6 +5,8 @@ import { ONI_SYSTEM_PROMPT, ACTION_INSTRUCTION } from "@/lib/prompts/oni-system"
 import type { ActionPayload, DiagnosticPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
+// Même contrainte que /api/diagnostic : Claude peut dépasser les 10s par défaut.
+export const maxDuration = 60;
 
 function extractJSON<T = unknown>(text: string): T {
   const cleaned = text
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest) {
         clients: p.clients ?? [],
         created_at: new Date().toISOString(),
         completed_at: null,
+        diagnostic_reasoning: body.diagnostic.reasoning ?? null,
       },
       reused: false,
       anonymous: true,
@@ -138,7 +141,7 @@ export async function POST(request: NextRequest) {
 
   const { data: existing } = await supabase
     .from("actions")
-    .select("*")
+    .select("*, diagnostics(reasoning)")
     .eq("diagnostic_id", diagnosticId)
     .eq("user_id", user.id)
     .order("step_number", { ascending: true })
@@ -146,7 +149,16 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    return Response.json({ action: existing, reused: true });
+    const { diagnostics, ...actionRow } = existing as {
+      diagnostics?: { reasoning?: string | null } | null;
+    } & Record<string, unknown>;
+    return Response.json({
+      action: {
+        ...actionRow,
+        diagnostic_reasoning: diagnostics?.reasoning ?? null,
+      },
+      reused: true,
+    });
   }
 
   const { data: diag, error: diagErr } = await supabase
@@ -199,7 +211,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: insertErr.message }, { status: 500 });
   }
 
-  return Response.json({ action: inserted, reused: false });
+  return Response.json({
+    action: { ...inserted, diagnostic_reasoning: diag.reasoning ?? null },
+    reused: false,
+  });
 }
 
 export async function PATCH(request: NextRequest) {

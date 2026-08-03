@@ -95,6 +95,7 @@ export interface ClientTouch {
   channel: string;
   message: string;
   status: ClientStatus;
+  response_text?: string;
 }
 
 export interface Action {
@@ -114,6 +115,8 @@ export interface Action {
   clients: ClientTouch[] | null;
   created_at: string;
   completed_at: string | null;
+  // Injecté depuis diagnostic.reasoning en transit, pas persisté sur actions.
+  diagnostic_reasoning?: string | null;
 }
 
 export interface ActionPayload {
