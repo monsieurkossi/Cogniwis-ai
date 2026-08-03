@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { ClientTouch } from "@/lib/types";
+
+export type AdjustmentType = "tone" | "shorter" | "custom";
 
 const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   email: (
@@ -33,7 +36,10 @@ interface Props {
   onCopy?: (message: string) => void;
   onMarkSent?: () => void;
   onEdit?: () => void;
+  onAdjust?: (type: AdjustmentType, customInstruction?: string) => Promise<void> | void;
 }
+
+const MAX_ADJUSTMENTS = 3;
 
 export function ClientCard({
   client,
@@ -42,10 +48,34 @@ export function ClientCard({
   onCopy,
   onMarkSent,
   onEdit,
+  onAdjust,
 }: Props) {
   const channel = client.channel.toLowerCase();
   const icon = CHANNEL_ICONS[channel] ?? CHANNEL_ICONS.email;
   const sent = client.status === "sent" || client.status === "answered";
+  const [adjustCount, setAdjustCount] = useState(0);
+  const [adjusting, setAdjusting] = useState<AdjustmentType | null>(null);
+  const [showCustom, setShowCustom] = useState(false);
+  const [customInput, setCustomInput] = useState("");
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+
+  const runAdjustment = async (type: AdjustmentType, custom?: string) => {
+    if (!onAdjust || adjustCount >= MAX_ADJUSTMENTS) return;
+    setAdjustError(null);
+    setAdjusting(type);
+    try {
+      await onAdjust(type, custom);
+      setAdjustCount((n) => n + 1);
+      setShowCustom(false);
+      setCustomInput("");
+    } catch (err) {
+      setAdjustError(err instanceof Error ? err.message : "Ajustement raté");
+    } finally {
+      setAdjusting(null);
+    }
+  };
+
+  const canAdjust = !!onAdjust && !sent && adjustCount < MAX_ADJUSTMENTS;
 
   return (
     <div
@@ -99,6 +129,65 @@ export function ClientCard({
           <div className="bg-surface-1 border border-gray-200 rounded-card p-3 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
             {client.message}
           </div>
+
+          {canAdjust && (
+            <div className="mt-3 flex gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => runAdjustment("tone")}
+                disabled={!!adjusting}
+                className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:border-accent hover:text-accent transition disabled:opacity-40"
+              >
+                {adjusting === "tone" ? "…" : "Changer le ton"}
+              </button>
+              <button
+                type="button"
+                onClick={() => runAdjustment("shorter")}
+                disabled={!!adjusting}
+                className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:border-accent hover:text-accent transition disabled:opacity-40"
+              >
+                {adjusting === "shorter" ? "…" : "Plus court"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCustom((s) => !s)}
+                disabled={!!adjusting}
+                className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:border-accent hover:text-accent transition disabled:opacity-40"
+              >
+                Autre ajustement
+              </button>
+            </div>
+          )}
+
+          {canAdjust && showCustom && (
+            <div className="mt-2 flex gap-2 items-start">
+              <textarea
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="Dis-moi ce que tu veux changer…"
+                className="flex-1 min-h-16 p-2 rounded-lg border border-gray-200 text-sm resize-y focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+              />
+              <button
+                type="button"
+                onClick={() => runAdjustment("custom", customInput.trim())}
+                disabled={!!adjusting || customInput.trim().length === 0}
+                className="text-xs font-medium px-3 py-2 rounded-lg bg-accent text-white hover:bg-accent-dark transition disabled:opacity-40"
+              >
+                {adjusting === "custom" ? "…" : "Appliquer"}
+              </button>
+            </div>
+          )}
+
+          {!canAdjust && adjustCount >= MAX_ADJUSTMENTS && !sent && (
+            <div className="mt-3 text-xs text-gray-500">
+              On y va avec ça — l&apos;important c&apos;est d&apos;envoyer, pas
+              de perfectionner.
+            </div>
+          )}
+
+          {adjustError && (
+            <div className="mt-2 text-xs text-status-critical">{adjustError}</div>
+          )}
         </div>
       )}
 

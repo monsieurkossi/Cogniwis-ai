@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Action, ClientTouch } from "@/lib/types";
-import { ClientCard } from "./ClientCard";
+import { ClientCard, type AdjustmentType } from "./ClientCard";
 
 const PIPELINE_STEPS = ["À faire", "En cours", "Envoyé", "Résultat reçu"];
 
@@ -23,6 +23,29 @@ export function ActionCard({ action, reasoning, onClientsChange }: Props) {
     const next = clients.map((c, i) => (i === idx ? { ...c, ...patch } : c));
     setClients(next);
     onClientsChange?.(next);
+  };
+
+  const adjustMessage = async (
+    idx: number,
+    type: AdjustmentType,
+    customInstruction?: string
+  ) => {
+    const target = clients[idx];
+    if (!target) return;
+    const res = await fetch("/api/action/adjust", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        original_content: target.message,
+        adjustment_type: type,
+        custom_instruction: customInstruction ?? null,
+      }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.content) {
+      throw new Error(json?.error ?? `HTTP ${res.status}`);
+    }
+    updateClient(idx, { message: json.content });
   };
 
   const sentCount = clients.filter(
@@ -137,6 +160,7 @@ export function ActionCard({ action, reasoning, onClientsChange }: Props) {
                 active={isActive}
                 onCopy={() => {}}
                 onMarkSent={() => updateClient(idx, { status: "sent" })}
+                onAdjust={(type, custom) => adjustMessage(idx, type, custom)}
               />
             );
           })}
