@@ -1,7 +1,11 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAnthropic, ONI_MODEL } from "@/lib/anthropic";
-import { ONI_SYSTEM_PROMPT, ACTION_INSTRUCTION } from "@/lib/prompts/oni-system";
+import {
+  ONI_SYSTEM_PROMPT,
+  ACTION_INSTRUCTION,
+  NEXT_ACTION_INSTRUCTION,
+} from "@/lib/prompts/oni-system";
 import type { ActionPayload, DiagnosticPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -38,31 +42,59 @@ function extractJSON<T = unknown>(text: string): T {
 interface ActionRequestBody {
   diagnosticId?: string;
   diagnostic?: DiagnosticPayload;
+  // Génération explicite de l'action suivante à partir des précédentes.
+  next?: boolean;
+  previousActions?: Array<
+    Pick<
+      ActionPayload,
+      "pillar" | "step_number" | "title" | "kpi_target"
+    > & { kpi_result?: string | null; status?: string | null }
+  >;
+  previousAnalysis?: unknown;
 }
 
 async function generateAction(
   diagnostic: Pick<
     DiagnosticPayload,
     "verdict" | "reframing" | "reasoning" | "global_score" | "priority_pillar" | "pillars"
-  >
+  >,
+  context?: {
+    previousActions?: ActionRequestBody["previousActions"];
+    previousAnalysis?: unknown;
+  }
 ): Promise<{ payload: ActionPayload } | { error: string; raw?: string; status: number }> {
   const anthropic = getAnthropic();
+  const isNext =
+    !!context?.previousActions && context.previousActions.length > 0;
+  const userContent = isNext
+    ? `Voici le diagnostic :\n\n${JSON.stringify(diagnostic, null, 2)}\n\n` +
+      `Actions déjà exécutées (par ordre chronologique) :\n${JSON.stringify(
+        context.previousActions,
+        null,
+        2
+      )}\n\n` +
+      (context.previousAnalysis
+        ? `Dernière analyse de verbatims :\n${JSON.stringify(
+            context.previousAnalysis,
+            null,
+            2
+          )}\n\n`
+        : "") +
+      NEXT_ACTION_INSTRUCTION
+    : `Voici le diagnostic établi précédemment :\n\n${JSON.stringify(
+        diagnostic,
+        null,
+        2
+      )}\n\n${ACTION_INSTRUCTION}`;
+
   let response;
   try {
     response = await anthropic.messages.create({
       model: ONI_MODEL,
       max_tokens: 2048,
+      thinking: { type: "disabled" },
       system: ONI_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Voici le diagnostic établi précédemment :\n\n${JSON.stringify(
-            diagnostic,
-            null,
-            2
-          )}\n\n${ACTION_INSTRUCTION}`,
-        },
-      ],
+      messages: [{ role: "user", content: userContent }],
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "erreur Anthropic";
@@ -93,7 +125,10 @@ export async function POST(request: NextRequest) {
 
   // Mode anonyme : diagnostic direct
   if (body.diagnostic) {
-    const result = await generateAction(body.diagnostic);
+    const result = await generateAction(body.diagnostic, {
+      previousActions: body.previousActions,
+      previousAnalysis: body.previousAnalysis,
+    });
     if ("error" in result) {
       return Response.json(
         { error: result.error, raw: result.raw },
@@ -139,19 +174,22 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { data: existing } = await supabase
+  const { data: existingRows } = await supabase
     .from("actions")
     .select("*, diagnostics(reasoning)")
     .eq("diagnostic_id", diagnosticId)
     .eq("user_id", user.id)
-    .order("step_number", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
 
-  if (existing) {
-    const { diagnostics, ...actionRow } = existing as {
+  const existing = existingRows ?? [];
+
+  // Sans « next » : on renvoie la dernière action (active ou complétée) si
+  // elle existe. C'est ce que la page consomme au premier chargement.
+  if (!body.next && existing.length > 0) {
+    const latest = existing[existing.length - 1] as {
       diagnostics?: { reasoning?: string | null } | null;
     } & Record<string, unknown>;
+    const { diagnostics, ...actionRow } = latest;
     return Response.json({
       action: {
         ...actionRow,
@@ -172,14 +210,50 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "diagnostic not found" }, { status: 404 });
   }
 
-  const result = await generateAction({
-    verdict: diag.verdict,
-    reframing: diag.reframing,
-    reasoning: diag.reasoning,
-    global_score: diag.global_score,
-    priority_pillar: diag.priority_pillar,
-    pillars: diag.pillars,
-  });
+  // Construit le contexte pour la génération d'action suivante.
+  const previousActions =
+    body.next && existing.length > 0
+      ? existing.map((a) => {
+          const row = a as Record<string, unknown>;
+          return {
+            pillar: row.pillar as ActionPayload["pillar"],
+            step_number: row.step_number as number,
+            title: row.title as string,
+            kpi_target: (row.kpi_target as string | null) ?? "",
+            kpi_result: (row.kpi_result as string | null) ?? null,
+            status: (row.status as string | null) ?? null,
+          };
+        })
+      : undefined;
+
+  const previousAnalysis = (() => {
+    if (!body.next || existing.length === 0) return undefined;
+    const lastCompleted = [...existing]
+      .reverse()
+      .find(
+        (a) =>
+          (a as Record<string, unknown>).status === "completed" &&
+          (a as Record<string, unknown>).kpi_result
+      ) as Record<string, unknown> | undefined;
+    if (!lastCompleted) return body.previousAnalysis;
+    try {
+      return JSON.parse(lastCompleted.kpi_result as string);
+    } catch {
+      return body.previousAnalysis;
+    }
+  })();
+
+  const result = await generateAction(
+    {
+      verdict: diag.verdict,
+      reframing: diag.reframing,
+      reasoning: diag.reasoning,
+      global_score: diag.global_score,
+      priority_pillar: diag.priority_pillar,
+      pillars: diag.pillars,
+    },
+    { previousActions, previousAnalysis }
+  );
   if ("error" in result) {
     return Response.json(
       { error: result.error, raw: result.raw },
@@ -188,13 +262,23 @@ export async function POST(request: NextRequest) {
   }
   const payload = result.payload;
 
+  // Force step_number = max(existing) + 1 pour éviter les doublons si Claude
+  // renvoie une valeur incohérente sur une génération « next ».
+  const stepNumber = body.next && existing.length > 0
+    ? Math.max(
+        ...existing.map(
+          (a) => ((a as Record<string, unknown>).step_number as number) ?? 0
+        )
+      ) + 1
+    : payload.step_number;
+
   const { data: inserted, error: insertErr } = await supabase
     .from("actions")
     .insert({
       user_id: user.id,
       diagnostic_id: diagnosticId,
       pillar: payload.pillar,
-      step_number: payload.step_number,
+      step_number: stepNumber,
       total_steps: payload.total_steps,
       title: payload.title,
       description: payload.description,

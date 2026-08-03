@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { OniAvatar } from "@/components/OniAvatar";
@@ -16,122 +16,184 @@ import type { StepperStep } from "@/components/ProgressStepper";
 
 const DIAG_STORAGE_KEY = "cogniwis:diagnostic";
 const ACTION_STORAGE_KEY = "cogniwis:action";
+const ANALYSIS_STORAGE_KEY = "cogniwis:verbatim-analysis";
+
+type ActionPageState =
+  | "loading"
+  | "executing"
+  | "waiting_verbatims"
+  | "analyzing"
+  | "showing_results"
+  | "generating_next"
+  | "error";
+
+function parseAnalysis(raw: string | null | undefined): VerbatimAnalysis | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "analysis_oni" in parsed) {
+      return parsed as VerbatimAnalysis;
+    }
+  } catch {}
+  return null;
+}
+
+function allClientsSent(clients: ClientTouch[]): boolean {
+  if (clients.length === 0) return false;
+  return clients.every((c) => c.status === "sent" || c.status === "answered");
+}
+
+function deriveState(
+  action: Action | null,
+  analysis: VerbatimAnalysis | null
+): ActionPageState {
+  if (!action) return "loading";
+  if (action.status === "completed" && analysis) return "showing_results";
+  if (action.status === "completed" && !analysis) return "waiting_verbatims";
+  if (allClientsSent(action.clients ?? [])) return "waiting_verbatims";
+  return "executing";
+}
 
 function ActionInner() {
   const params = useSearchParams();
   const router = useRouter();
   const diagnosticId = params.get("diagnostic");
   const [action, setAction] = useState<Action | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<ActionPageState>("loading");
   const [error, setError] = useState<string | null>(null);
-  const [completed, setCompleted] = useState(false);
-  const [allSent, setAllSent] = useState(false);
   const [showVerbatimForm, setShowVerbatimForm] = useState(false);
   const [remindLater, setRemindLater] = useState(false);
   const [verbatims, setVerbatims] = useState<Record<string, string>>({});
   const [notYet, setNotYet] = useState<Record<string, boolean>>({});
-  const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<VerbatimAnalysis | null>(
     null
   );
-  const [continued, setContinued] = useState(false);
+
+  const transition = useCallback(
+    (
+      next: ActionPageState,
+      ctx?: { action?: Action | null; analysis?: VerbatimAnalysis | null }
+    ) => {
+      console.log("[Action] État:", next, {
+        action: ctx?.action ?? action,
+        analysis: ctx?.analysis ?? analysisResult,
+      });
+      setState(next);
+    },
+    [action, analysisResult]
+  );
+
+  const loadConnected = useCallback(async () => {
+    setError(null);
+    setState("loading");
+    const supabase = createClient();
+
+    let did = diagnosticId;
+    if (!did) {
+      const { data } = await supabase
+        .from("diagnostics")
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      did = data?.id ?? null;
+    }
+
+    if (!did) {
+      setError("Pas de diagnostic disponible. Fais d'abord un diagnostic.");
+      setState("error");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ diagnosticId: did }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const fresh = json.action as Action;
+      const parsedAnalysis =
+        fresh.status === "completed"
+          ? parseAnalysis(fresh.kpi_result)
+          : null;
+      setAction(fresh);
+      setAnalysisResult(parsedAnalysis);
+      transition(deriveState(fresh, parsedAnalysis), {
+        action: fresh,
+        analysis: parsedAnalysis,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inattendue");
+      setState("error");
+    }
+  }, [diagnosticId, transition]);
+
+  const loadAnonymous = useCallback(async (diag: Diagnostic) => {
+    setError(null);
+    setState("loading");
+    try {
+      const res = await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ diagnostic: diag }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const fresh = json.action as Action;
+      setAction(fresh);
+      try {
+        sessionStorage.setItem(ACTION_STORAGE_KEY, JSON.stringify(fresh));
+      } catch {}
+      transition(deriveState(fresh, analysisResult), { action: fresh });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inattendue");
+      setState("error");
+    }
+  }, [analysisResult, transition]);
+
+  const bootstrap = useCallback(async () => {
+    // 1. Cache session : action + analyse rehydratés en une passe.
+    try {
+      const cachedAction = sessionStorage.getItem(ACTION_STORAGE_KEY);
+      if (cachedAction) {
+        const parsed = JSON.parse(cachedAction) as Action;
+        const cachedAnalysis = parseAnalysis(
+          sessionStorage.getItem(ANALYSIS_STORAGE_KEY)
+        );
+        setAction(parsed);
+        setAnalysisResult(cachedAnalysis);
+        transition(deriveState(parsed, cachedAnalysis), {
+          action: parsed,
+          analysis: cachedAnalysis,
+        });
+        return;
+      }
+    } catch {}
+
+    // 2. Diagnostic anonyme en sessionStorage → mode payload direct.
+    let anonDiag: Diagnostic | null = null;
+    try {
+      const raw = sessionStorage.getItem(DIAG_STORAGE_KEY);
+      if (raw) anonDiag = JSON.parse(raw) as Diagnostic;
+    } catch {}
+    if (anonDiag) {
+      await loadAnonymous(anonDiag);
+      return;
+    }
+
+    // 3. Mode connecté.
+    await loadConnected();
+  }, [loadAnonymous, loadConnected, transition]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      // 1. Action déjà en cache
-      try {
-        const cached = sessionStorage.getItem(ACTION_STORAGE_KEY);
-        if (cached) {
-          const parsed = JSON.parse(cached) as Action;
-          if (!cancelled) {
-            setAction(parsed);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch {}
-
-      // 2. Diagnostic anonyme en sessionStorage → mode payload direct
-      let anonDiag: Diagnostic | null = null;
-      try {
-        const raw = sessionStorage.getItem(DIAG_STORAGE_KEY);
-        if (raw) anonDiag = JSON.parse(raw) as Diagnostic;
-      } catch {}
-
-      if (anonDiag) {
-        try {
-          const res = await fetch("/api/action", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ diagnostic: anonDiag }),
-          });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.error ?? "Erreur");
-          if (!cancelled) {
-            setAction(json.action as Action);
-            try {
-              sessionStorage.setItem(
-                ACTION_STORAGE_KEY,
-                JSON.stringify(json.action)
-              );
-            } catch {}
-            setLoading(false);
-          }
-        } catch (err) {
-          if (!cancelled) {
-            setError(err instanceof Error ? err.message : "Erreur inattendue");
-            setLoading(false);
-          }
-        }
-        return;
-      }
-
-      // 3. Fallback : mode connecté
-      const supabase = createClient();
-      let did = diagnosticId;
-
-      if (!did) {
-        const { data } = await supabase
-          .from("diagnostics")
-          .select("id")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        did = data?.id ?? null;
-      }
-
-      if (!did) {
-        setError("Pas de diagnostic disponible. Fais d'abord un diagnostic.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ diagnosticId: did }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Erreur");
-        if (!cancelled) {
-          setAction(json.action as Action);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erreur inattendue");
-          setLoading(false);
-        }
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [diagnosticId]);
+    bootstrap();
+    // On bootstrappe une seule fois au montage — dépendances stables sinon
+    // on relance à chaque changement d'analysisResult.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const persistClients = async (clients: ClientTouch[]) => {
     if (!action) return;
@@ -140,11 +202,8 @@ function ActionInner() {
     try {
       sessionStorage.setItem(ACTION_STORAGE_KEY, JSON.stringify(next));
     } catch {}
-    if (
-      clients.length > 0 &&
-      clients.every((c) => c.status === "sent" || c.status === "answered")
-    ) {
-      setAllSent(true);
+    if (allClientsSent(clients) && state === "executing") {
+      transition("waiting_verbatims", { action: next });
     }
     if (!action.id.startsWith("anon-")) {
       await fetch("/api/action", {
@@ -155,39 +214,19 @@ function ActionInner() {
     }
   };
 
-  const markCompleted = async () => {
-    if (!action) return;
-    setCompleted(true);
-    if (!action.id.startsWith("anon-")) {
-      await fetch("/api/action", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actionId: action.id, status: "completed" }),
-      });
-    }
-  };
-
   const clients = action?.clients ?? [];
-
-  useEffect(() => {
-    if (
-      clients.length > 0 &&
-      clients.every((c) => c.status === "sent" || c.status === "answered")
-    ) {
-      setAllSent(true);
-    }
-  }, [clients]);
 
   const filledVerbatimKeys = Object.keys(verbatims).filter((k) => {
     if (notYet[k]) return false;
     return (verbatims[k] ?? "").trim().length > 0;
   });
-  const canAnalyze = filledVerbatimKeys.length >= 2 && !analyzing;
+  const canAnalyze =
+    filledVerbatimKeys.length >= 2 && state !== "analyzing";
 
   const submitVerbatims = async () => {
     if (!canAnalyze || !action) return;
-    setAnalyzing(true);
     setAnalyzeError(null);
+    transition("analyzing");
     const payload = {
       actionId: action.id,
       diagnosticId: action.diagnostic_id,
@@ -213,12 +252,14 @@ function ActionInner() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.analysis) {
-        throw new Error(
-          json?.error ?? json?.debug ?? `HTTP ${res.status}`
-        );
+        throw new Error(json?.error ?? json?.debug ?? `HTTP ${res.status}`);
       }
-      setAnalysisResult(json.analysis as VerbatimAnalysis);
-      // Persiste les verbatims sur les clients (statut answered + texte).
+      const analysis = json.analysis as VerbatimAnalysis;
+      setAnalysisResult(analysis);
+      try {
+        sessionStorage.setItem(ANALYSIS_STORAGE_KEY, JSON.stringify(analysis));
+      } catch {}
+      // Statut answered + réponse persistée sur les clients.
       const patchedClients = clients.map((c, i) => {
         const key = String(i);
         if (notYet[key]) return c;
@@ -226,12 +267,100 @@ function ActionInner() {
         if (!text) return c;
         return { ...c, status: "answered" as const, response_text: text };
       });
-      void persistClients(patchedClients);
+      const completedAction: Action = {
+        ...action,
+        clients: patchedClients,
+        status: "completed",
+        kpi_result: JSON.stringify(analysis),
+        completed_at: new Date().toISOString(),
+      };
+      setAction(completedAction);
+      try {
+        sessionStorage.setItem(
+          ACTION_STORAGE_KEY,
+          JSON.stringify(completedAction)
+        );
+      } catch {}
+      // Persistance clients côté serveur (best-effort, l'analyse est déjà
+      // sauvegardée par /api/analyze-verbatims).
+      if (!action.id.startsWith("anon-")) {
+        void fetch("/api/action", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actionId: action.id,
+            clients: patchedClients,
+          }),
+        });
+      }
+      transition("showing_results", {
+        action: completedAction,
+        analysis,
+      });
     } catch (err) {
       setAnalyzeError(err instanceof Error ? err.message : "Erreur réseau");
-    } finally {
-      setAnalyzing(false);
+      // Retour à l'état verbatims pour permettre un retry.
+      transition("waiting_verbatims");
     }
+  };
+
+  const handleContinue = async () => {
+    if (!action || !analysisResult) return;
+    transition("generating_next");
+    setError(null);
+    try {
+      const body: Record<string, unknown> = {
+        next: true,
+        previousAnalysis: analysisResult,
+      };
+      if (action.id.startsWith("anon-")) {
+        // Mode anonyme : on renvoie le diagnostic + un résumé de l'action précédente.
+        const rawDiag = sessionStorage.getItem(DIAG_STORAGE_KEY);
+        if (!rawDiag) throw new Error("Diagnostic anonyme introuvable");
+        body.diagnostic = JSON.parse(rawDiag);
+        body.previousActions = [
+          {
+            pillar: action.pillar,
+            step_number: action.step_number,
+            title: action.title,
+            kpi_target: action.kpi_target,
+            kpi_result: action.kpi_result,
+            status: action.status,
+          },
+        ];
+      } else {
+        body.diagnosticId = action.diagnostic_id;
+      }
+      const res = await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const nextAction = json.action as Action;
+      setAction(nextAction);
+      setAnalysisResult(null);
+      setVerbatims({});
+      setNotYet({});
+      setShowVerbatimForm(false);
+      setRemindLater(false);
+      try {
+        sessionStorage.setItem(ACTION_STORAGE_KEY, JSON.stringify(nextAction));
+        sessionStorage.removeItem(ANALYSIS_STORAGE_KEY);
+      } catch {}
+      transition(deriveState(nextAction, null), {
+        action: nextAction,
+        analysis: null,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
+      transition("showing_results");
+    }
+  };
+
+  const handleDoubts = () => {
+    router.push("/chat");
   };
 
   const tagsByContact = new Map<string, string[]>(
@@ -241,22 +370,18 @@ function ActionInner() {
     ])
   );
 
-  // Stepper : Diagnostic ✓, Action actif → Suivi actif après analyse →
-  // Réajustement actif après « On continue ».
-  const stepperActive: StepperStep = continued
-    ? "Réajustement"
-    : analysisResult
-      ? "Suivi"
-      : "Action";
-  const stepperDone: StepperStep[] = continued
-    ? ["Diagnostic", "Action", "Suivi"]
-    : analysisResult
-      ? ["Diagnostic", "Action"]
-      : ["Diagnostic"];
-
-  const handleDoubts = () => {
-    router.push("/chat");
-  };
+  const stepperActive: StepperStep =
+    state === "generating_next"
+      ? "Réajustement"
+      : state === "showing_results"
+        ? "Suivi"
+        : "Action";
+  const stepperDone: StepperStep[] =
+    state === "generating_next"
+      ? ["Diagnostic", "Action", "Suivi"]
+      : state === "showing_results"
+        ? ["Diagnostic", "Action"]
+        : ["Diagnostic"];
 
   return (
     <div className="min-h-screen bg-surface">
@@ -265,7 +390,7 @@ function ActionInner() {
           <ProgressStepper active={stepperActive} done={stepperDone} />
         </div>
 
-        {loading && (
+        {state === "loading" && (
           <div className="flex flex-col items-center py-16">
             <OniAvatar size={100} speaking />
             <p className="mt-4 text-gray-600">
@@ -274,13 +399,21 @@ function ActionInner() {
           </div>
         )}
 
-        {error && (
+        {state === "error" && error && (
           <div className="bg-status-critical-bg border border-status-critical/30 rounded-card p-4 text-status-critical">
-            {error}
-            <div className="mt-3">
+            <div className="font-semibold mb-2">Quelque chose a coincé</div>
+            <div className="text-sm">{error}</div>
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={bootstrap}
+                className="inline-block px-4 py-2 rounded-card bg-accent text-white font-semibold text-sm"
+              >
+                Réessayer
+              </button>
               <Link
                 href="/chat"
-                className="inline-block px-4 py-2 rounded-card bg-accent text-white font-semibold text-sm"
+                className="inline-block px-4 py-2 rounded-card border border-gray-200 text-gray-700 font-semibold text-sm"
               >
                 Aller au chat
               </Link>
@@ -288,172 +421,183 @@ function ActionInner() {
           </div>
         )}
 
-        {action && (
+        {action && state !== "loading" && state !== "error" && (
           <div className="space-y-6">
-            <OniMessage
-              content={`On attaque avec le pilier "${action.pillar}". Objectif : ${action.title}. ${
-                action.description ?? ""
-              }`}
-            />
+            {state !== "generating_next" && (
+              <>
+                <OniMessage
+                  content={`On attaque avec le pilier "${action.pillar}". Objectif : ${action.title}. ${
+                    action.description ?? ""
+                  }`}
+                />
 
-            <ActionCard
-              action={action}
-              reasoning={action.diagnostic_reasoning}
-              onClientsChange={persistClients}
-              onComplete={markCompleted}
-            />
+                <ActionCard
+                  action={action}
+                  reasoning={action.diagnostic_reasoning}
+                  onClientsChange={persistClients}
+                />
 
-            {action.deliverable && (
-              <DeliverableCard content={action.deliverable} />
+                {action.deliverable && (
+                  <DeliverableCard content={action.deliverable} />
+                )}
+              </>
             )}
 
-            {allSent && !completed && !analysisResult && !showVerbatimForm && !remindLater && (
-              <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2">
-                <div className="flex items-start gap-3 mb-6">
-                  <OniAvatar size={32} />
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-gray-800">
-                      Parfait, tout est parti. Dès que t&apos;as des réponses,
-                      colle-les ici — j&apos;ai besoin de leurs mots exacts
-                      pour bosser.
-                    </p>
+            {state === "waiting_verbatims" &&
+              !showVerbatimForm &&
+              !remindLater &&
+              !analysisResult && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2">
+                  <div className="flex items-start gap-3 mb-6">
+                    <OniAvatar size={32} />
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-gray-800">
+                        Parfait, tout est parti. Dès que t&apos;as des
+                        réponses, colle-les ici — j&apos;ai besoin de leurs
+                        mots exacts pour bosser.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowVerbatimForm(true)}
+                      className="w-full bg-accent text-white py-3 px-6 rounded-lg font-medium hover:bg-accent-dark transition"
+                    >
+                      J&apos;ai déjà reçu des réponses →
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRemindLater(true)}
+                      className="w-full bg-white border border-gray-200 text-gray-600 py-3 px-6 rounded-lg font-medium hover:bg-gray-50 transition"
+                    >
+                      Pas encore — rappelle-moi plus tard
+                    </button>
                   </div>
                 </div>
-                <div className="flex flex-col gap-3">
+              )}
+
+            {state === "waiting_verbatims" &&
+              !showVerbatimForm &&
+              remindLater &&
+              !analysisResult && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2">
+                  <div className="flex items-start gap-3 mb-6">
+                    <OniAvatar size={32} />
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-gray-800">
+                        Ok, je te laisse respirer. Reviens dès que tu as des
+                        retours — même partiels, ça me suffit pour avancer.
+                      </p>
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setShowVerbatimForm(true)}
+                    onClick={() => {
+                      setRemindLater(false);
+                      setShowVerbatimForm(true);
+                    }}
                     className="w-full bg-accent text-white py-3 px-6 rounded-lg font-medium hover:bg-accent-dark transition"
                   >
-                    J&apos;ai déjà reçu des réponses →
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRemindLater(true)}
-                    className="w-full bg-white border border-gray-200 text-gray-600 py-3 px-6 rounded-lg font-medium hover:bg-gray-50 transition"
-                  >
-                    Pas encore — rappelle-moi plus tard
+                    En fait j&apos;ai des réponses →
                   </button>
                 </div>
-              </div>
-            )}
+              )}
 
-            {allSent && !completed && !analysisResult && !showVerbatimForm && remindLater && (
-              <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2">
-                <div className="flex items-start gap-3 mb-6">
-                  <OniAvatar size={32} />
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-gray-800">
-                      Ok, je te laisse respirer. Reviens dès que tu as des
-                      retours — même partiels, ça me suffit pour avancer.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRemindLater(false);
-                    setShowVerbatimForm(true);
-                  }}
-                  className="w-full bg-accent text-white py-3 px-6 rounded-lg font-medium hover:bg-accent-dark transition"
-                >
-                  En fait j&apos;ai des réponses →
-                </button>
-              </div>
-            )}
-
-            {allSent && !completed && !analysisResult && showVerbatimForm && (
-              <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-4">
-                <p className="text-sm text-gray-600">
-                  Colle la réponse de chaque personne mot pour mot. Coche
-                  « Pas encore de réponse » pour celles qui n&apos;ont pas
-                  répondu.
-                </p>
-                {clients.map((c, i) => {
-                  const key = String(i);
-                  const pending = !!notYet[key];
-                  return (
-                    <div key={key} className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          {c.name}{" "}
-                          <span className="text-gray-400 font-normal normal-case">
-                            — {c.channel}
-                          </span>
-                        </label>
-                        <label className="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={pending}
-                            onChange={() => {
-                              setNotYet((prev) => {
-                                const next = { ...prev, [key]: !prev[key] };
-                                if (next[key]) {
-                                  setVerbatims((v) => ({ ...v, [key]: "" }));
-                                }
-                                return next;
-                              });
-                            }}
-                            className="accent-accent"
-                          />
-                          Pas encore de réponse
-                        </label>
+            {state === "waiting_verbatims" &&
+              showVerbatimForm &&
+              !analysisResult && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Colle la réponse de chaque personne mot pour mot. Coche
+                    « Pas encore de réponse » pour celles qui n&apos;ont pas
+                    répondu.
+                  </p>
+                  {clients.map((c, i) => {
+                    const key = String(i);
+                    const pending = !!notYet[key];
+                    return (
+                      <div key={key} className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            {c.name}{" "}
+                            <span className="text-gray-400 font-normal normal-case">
+                              — {c.channel}
+                            </span>
+                          </label>
+                          <label className="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={pending}
+                              onChange={() => {
+                                setNotYet((prev) => {
+                                  const next = { ...prev, [key]: !prev[key] };
+                                  if (next[key]) {
+                                    setVerbatims((v) => ({ ...v, [key]: "" }));
+                                  }
+                                  return next;
+                                });
+                              }}
+                              className="accent-accent"
+                            />
+                            Pas encore de réponse
+                          </label>
+                        </div>
+                        <textarea
+                          value={verbatims[key] ?? ""}
+                          onChange={(e) =>
+                            setVerbatims((v) => ({
+                              ...v,
+                              [key]: e.target.value,
+                            }))
+                          }
+                          placeholder={
+                            pending
+                              ? ""
+                              : `Colle ici la réponse de ${c.name}…`
+                          }
+                          disabled={pending}
+                          className={`w-full min-h-24 p-3 rounded-lg border text-sm resize-y focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent ${
+                            pending
+                              ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
+                              : "border-gray-200 text-gray-800"
+                          }`}
+                        />
                       </div>
-                      <textarea
-                        value={verbatims[key] ?? ""}
-                        onChange={(e) =>
-                          setVerbatims((v) => ({
-                            ...v,
-                            [key]: e.target.value,
-                          }))
-                        }
-                        placeholder={
-                          pending ? "" : `Colle ici la réponse de ${c.name}…`
-                        }
-                        disabled={pending}
-                        className={`w-full min-h-24 p-3 rounded-lg border text-sm resize-y focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent ${
-                          pending
-                            ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
-                            : "border-gray-200 text-gray-800"
-                        }`}
-                      />
-                    </div>
-                  );
-                })}
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={submitVerbatims}
-                    disabled={!canAnalyze}
-                    className="bg-accent text-white py-2.5 px-5 rounded-lg font-medium hover:bg-accent-dark transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {analyzing
-                      ? "Analyse en cours…"
-                      : "Analyser les réponses →"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowVerbatimForm(false)}
-                    className="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Retour
-                  </button>
+                    );
+                  })}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={submitVerbatims}
+                      disabled={!canAnalyze}
+                      className="bg-accent text-white py-2.5 px-5 rounded-lg font-medium hover:bg-accent-dark transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Analyser les réponses →
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowVerbatimForm(false)}
+                      className="text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      Retour
+                    </button>
+                  </div>
+                  {filledVerbatimKeys.length < 2 && (
+                    <p className="text-xs text-gray-500">
+                      Il faut au moins 2 réponses saisies pour lancer
+                      l&apos;analyse.
+                    </p>
+                  )}
+                  {analyzeError && (
+                    <p className="text-xs text-status-critical">
+                      {analyzeError}
+                    </p>
+                  )}
                 </div>
-                {filledVerbatimKeys.length < 2 && (
-                  <p className="text-xs text-gray-500">
-                    Il faut au moins 2 réponses saisies pour lancer
-                    l&apos;analyse.
-                  </p>
-                )}
-                {analyzeError && (
-                  <p className="text-xs text-status-critical">
-                    {analyzeError}
-                  </p>
-                )}
-              </div>
-            )}
+              )}
 
-            {analyzing && !analysisResult && (
+            {state === "analyzing" && (
               <div className="bg-white border border-gray-200 rounded-xl p-8 mt-2 flex flex-col items-center text-center">
                 <OniAvatar size={72} speaking />
                 <p className="mt-4 text-gray-700 font-medium">
@@ -465,12 +609,22 @@ function ActionInner() {
               </div>
             )}
 
-            {analysisResult && (
+            {state === "generating_next" && (
+              <div className="bg-white border border-gray-200 rounded-xl p-8 flex flex-col items-center text-center">
+                <OniAvatar size={72} speaking />
+                <p className="mt-4 text-gray-700 font-medium">
+                  Oni prépare la prochaine action…
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  On capitalise sur l&apos;angle qu&apos;on vient d&apos;isoler.
+                </p>
+              </div>
+            )}
+
+            {state === "showing_results" && analysisResult && (
               <div className="space-y-6">
-                {/* A) Message Oni */}
                 <OniMessage content={analysisResult.analysis_oni} />
 
-                {/* B) Verbatims collectés */}
                 <div className="bg-surface-1 border border-gray-200 rounded-card overflow-hidden">
                   <div className="px-5 py-3 border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500 font-semibold">
                     Verbatims collectés
@@ -478,7 +632,11 @@ function ActionInner() {
                   <div className="divide-y divide-gray-100">
                     {clients.map((c, i) => {
                       const key = String(i);
-                      const text = (verbatims[key] ?? c.response_text ?? "").trim();
+                      const text = (
+                        verbatims[key] ??
+                        c.response_text ??
+                        ""
+                      ).trim();
                       if (notYet[key] || !text) return null;
                       const tags =
                         tagsByContact.get(c.name.trim().toLowerCase()) ?? [];
@@ -523,7 +681,6 @@ function ActionInner() {
                   </div>
                 </div>
 
-                {/* C) Pattern détecté */}
                 {analysisResult.convergence && (
                   <div className="bg-accent-light/25 border border-accent/20 rounded-card p-5">
                     <div className="flex items-start gap-3">
@@ -566,7 +723,6 @@ function ActionInner() {
                   </div>
                 )}
 
-                {/* D) Prochaine action débloquée */}
                 <div className="bg-surface-1 border border-accent shadow-card rounded-card p-5">
                   <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">
                     Prochaine action débloquée
@@ -587,49 +743,27 @@ function ActionInner() {
                       </div>
                     </div>
                   )}
-                  {!continued ? (
-                    <div className="mt-5 flex items-center gap-3 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={handleDoubts}
-                        className="text-sm font-medium px-4 py-2 rounded-card border border-gray-200 text-gray-700 hover:bg-surface-2 transition-colors"
-                      >
-                        J&apos;ai des doutes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setContinued(true)}
-                        className="text-sm font-semibold px-4 py-2 rounded-card bg-accent text-white hover:bg-accent-dark transition-colors"
-                      >
-                        On continue →
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="mt-5 flex items-center gap-3 text-sm text-status-solid">
-                      <div className="h-6 w-6 rounded-full bg-status-solid text-white flex items-center justify-center text-xs">
-                        ✓
-                      </div>
-                      Prochaine action lancée. Envoie-toi au boulot — je reste
-                      en veille.
-                    </div>
+                  <div className="mt-5 flex items-center gap-3 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleDoubts}
+                      className="text-sm font-medium px-4 py-2 rounded-card border border-gray-200 text-gray-700 hover:bg-surface-2 transition-colors"
+                    >
+                      J&apos;ai des doutes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleContinue}
+                      className="text-sm font-semibold px-4 py-2 rounded-card bg-accent text-white hover:bg-accent-dark transition-colors"
+                    >
+                      On continue →
+                    </button>
+                  </div>
+                  {error && (
+                    <p className="mt-3 text-xs text-status-critical">
+                      {error}
+                    </p>
                   )}
-                </div>
-              </div>
-            )}
-
-            {completed && !analysisResult && (
-              <div className="bg-status-solid-bg border border-status-solid/30 rounded-card p-4 flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-status-solid text-white flex items-center justify-center">
-                  ✓
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900">
-                    Étape terminée
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Reviens dans quelques jours pour le suivi et l&apos;étape
-                    suivante.
-                  </div>
                 </div>
               </div>
             )}

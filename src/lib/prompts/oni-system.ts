@@ -211,3 +211,13 @@ IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON. Pas de texte avant. Pas d
 export const ACTION_INSTRUCTION = `Sur la base du diagnostic ci-dessus, génère MAINTENANT l'action concrète de l'étape 1 pour le pilier prioritaire au format JSON défini dans ton prompt système (format action).
 
 IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON. Pas de texte avant. Pas de texte après. Pas de backticks. Pas de "Voici l'action". Commence directement par { et termine par }. Rien d'autre.`;
+
+export const NEXT_ACTION_INSTRUCTION = `Sur la base du diagnostic ci-dessus, des actions déjà exécutées et de la dernière analyse de verbatims, génère MAINTENANT la PROCHAINE action concrète.
+
+Règles :
+- step_number = numéro de la nouvelle étape (dernière étape complétée + 1)
+- Reste sur le même pilier prioritaire tant que ses étapes ne sont pas toutes complétées
+- Si la dernière analyse de verbatims a révélé un angle clair, capitalise dessus dans cette prochaine action
+- Reprends les mêmes clients (ou en ajoute) uniquement s'il faut poursuivre la conversation avec eux ; sinon propose une action qui exploite l'angle sans nouveaux touches à envoyer (dans ce cas, retourne un tableau clients vide)
+
+IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON au format action (mêmes champs que l'action initiale). Pas de texte avant. Pas de texte après. Pas de backticks. Commence directement par { et termine par }. Rien d'autre.`;
