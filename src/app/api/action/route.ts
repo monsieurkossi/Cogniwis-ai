@@ -6,7 +6,7 @@ import {
   ACTION_INSTRUCTION,
   NEXT_ACTION_INSTRUCTION,
 } from "@/lib/prompts/oni-system";
-import type { ActionPayload, DiagnosticPayload } from "@/lib/types";
+import type { ActionPayload, ChatMessage, DiagnosticPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
 // Même contrainte que /api/diagnostic : Claude peut dépasser les 10s par défaut.
@@ -61,13 +61,37 @@ async function generateAction(
   context?: {
     previousActions?: ActionRequestBody["previousActions"];
     previousAnalysis?: unknown;
+    conversationRecap?: string | null;
+    conversationMessages?: ChatMessage[] | null;
   }
 ): Promise<{ payload: ActionPayload } | { error: string; raw?: string; status: number }> {
   const anthropic = getAnthropic();
   const isNext =
     !!context?.previousActions && context.previousActions.length > 0;
+
+  // Contexte conversation : récap validé + derniers échanges bruts.
+  // Utile pour retrouver les prénoms/noms de contacts mentionnés en cours de
+  // diagnostic, le vocabulaire du user, ses contraintes exactes.
+  const conversationBlock = (() => {
+    const recap = context?.conversationRecap?.trim();
+    const msgs = context?.conversationMessages ?? [];
+    if (!recap && msgs.length === 0) return "";
+    const parts: string[] = ["## Contexte conversation"];
+    if (recap) parts.push(`Récap validé :\n${recap}`);
+    if (msgs.length > 0) {
+      // On garde les 20 derniers échanges pour ne pas exploser le prompt.
+      const tail = msgs.slice(-20);
+      const transcript = tail
+        .map((m) => `${m.role === "user" ? "User" : "Oni"}: ${m.content}`)
+        .join("\n");
+      parts.push(`Derniers échanges :\n${transcript}`);
+    }
+    return `${parts.join("\n\n")}\n\n`;
+  })();
+
   const userContent = isNext
     ? `Voici le diagnostic :\n\n${JSON.stringify(diagnostic, null, 2)}\n\n` +
+      conversationBlock +
       `Actions déjà exécutées (par ordre chronologique) :\n${JSON.stringify(
         context.previousActions,
         null,
@@ -85,7 +109,7 @@ async function generateAction(
         diagnostic,
         null,
         2
-      )}\n\n${ACTION_INSTRUCTION}`;
+      )}\n\n${conversationBlock}${ACTION_INSTRUCTION}`;
 
   let response;
   try {
@@ -243,6 +267,19 @@ export async function POST(request: NextRequest) {
     }
   })();
 
+  // La jointure conversations(messages, recap) peut renvoyer un objet ou un
+  // tableau selon la config PostgREST — on normalise en un seul objet.
+  const conv = (() => {
+    const raw = (diag as { conversations?: unknown }).conversations;
+    if (!raw) return null;
+    if (Array.isArray(raw)) return raw[0] ?? null;
+    return raw as { messages?: unknown; recap?: string | null };
+  })();
+  const conversationMessages = Array.isArray(conv?.messages)
+    ? (conv?.messages as ChatMessage[])
+    : null;
+  const conversationRecap = (conv?.recap as string | null | undefined) ?? null;
+
   const result = await generateAction(
     {
       verdict: diag.verdict,
@@ -252,7 +289,12 @@ export async function POST(request: NextRequest) {
       priority_pillar: diag.priority_pillar,
       pillars: diag.pillars,
     },
-    { previousActions, previousAnalysis }
+    {
+      previousActions,
+      previousAnalysis,
+      conversationRecap,
+      conversationMessages,
+    }
   );
   if ("error" in result) {
     return Response.json(

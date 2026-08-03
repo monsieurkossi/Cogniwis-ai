@@ -208,16 +208,35 @@ Dans le champ "reasoning", explicite tes INFÉRENCES : quand tu as déduit une d
 
 IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON. Pas de texte avant. Pas de texte après. Pas de backticks. Pas de "Voici le diagnostic". Commence directement par { et termine par }. Rien d'autre.`;
 
-export const ACTION_INSTRUCTION = `Sur la base du diagnostic ci-dessus, génère MAINTENANT l'action concrète de l'étape 1 pour le pilier prioritaire au format JSON défini dans ton prompt système (format action).
+export const ACTION_INSTRUCTION = `Sur la base du diagnostic ET du contexte conversation ci-dessus, génère MAINTENANT l'action concrète de l'étape 1 pour le pilier prioritaire au format JSON défini dans ton prompt système (format action).
+
+RÈGLE ABSOLUE — LIVRABLE D'ABORD, ZÉRO QUESTION :
+- Tu ne poses AUCUNE question. Tu as déjà tout ce qu'il te faut dans le diagnostic et la conversation.
+- Le champ "deliverable" doit contenir le texte FINAL, prêt à copier-coller, exactement dans le ton du user (pas dans ton ton à toi). Si le user parle de manière brute et directe, le message doit sonner brut et direct. Si c'est une consultante RH, ça doit sonner comme une consultante RH.
+- Chaque entrée du tableau "clients" doit contenir un "message" complet, rédigé mot pour mot, prêt à envoyer.
+- Les champs "title" et "description" doivent être courts et opérationnels — pas de blabla, pas de "voici pourquoi c'est important". Le user est déjà d'accord.
+
+NOMS DE CONTACTS :
+- Si des noms de vrais contacts / prospects / clients ont été mentionnés pendant la conversation (récap ou messages), UTILISE-LES tels quels dans le champ "name" et rends le champ "role" cohérent avec ce que le user a dit.
+- Si aucun nom réel n'a été collecté, génère 3 personas plausibles mais utilise un placeholder EXPLICITE dans "name" : "[Contact 1 — profil : ...]", "[Contact 2 — profil : ...]", etc. Le "role" doit préciser le profil-type attendu ("ancien client SaaS B2B", "prospect LinkedIn dans la RH", etc.) pour que le user sache qui viser.
+
+FORMAT KPI :
+- "kpi_target" reste un texte lisible ("≥2 réponses sur 3 envois"), mais commence-le par un nombre entier atteignable (2, 3…) pour qu'on puisse en dériver un objectif chiffré côté UI.
 
 IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON. Pas de texte avant. Pas de texte après. Pas de backticks. Pas de "Voici l'action". Commence directement par { et termine par }. Rien d'autre.`;
 
-export const NEXT_ACTION_INSTRUCTION = `Sur la base du diagnostic ci-dessus, des actions déjà exécutées et de la dernière analyse de verbatims, génère MAINTENANT la PROCHAINE action concrète.
+export const NEXT_ACTION_INSTRUCTION = `Sur la base du diagnostic ci-dessus, du contexte conversation, des actions déjà exécutées et de la dernière analyse de verbatims, génère MAINTENANT la PROCHAINE action concrète.
 
 Règles :
 - step_number = numéro de la nouvelle étape (dernière étape complétée + 1)
+- total_steps = même valeur que l'action précédente (le pilier a déjà été découpé)
 - Reste sur le même pilier prioritaire tant que ses étapes ne sont pas toutes complétées
 - Si la dernière analyse de verbatims a révélé un angle clair, capitalise dessus dans cette prochaine action
 - Reprends les mêmes clients (ou en ajoute) uniquement s'il faut poursuivre la conversation avec eux ; sinon propose une action qui exploite l'angle sans nouveaux touches à envoyer (dans ce cas, retourne un tableau clients vide)
+
+Contraintes livrable identiques à l'étape 1 :
+- "deliverable" = texte final prêt à copier, dans le ton du user
+- Aucune question posée, aucun "voici pourquoi"
+- Noms réels du contexte si dispo, sinon placeholders explicites "[Contact X — profil : ...]"
 
 IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON au format action (mêmes champs que l'action initiale). Pas de texte avant. Pas de texte après. Pas de backticks. Commence directement par { et termine par }. Rien d'autre.`;
