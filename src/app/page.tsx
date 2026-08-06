@@ -65,18 +65,18 @@ export default async function LandingPage() {
           </div>
 
           <h1 className="mt-10 text-[44px] sm:text-[72px] font-semibold tracking-tight text-gray-900 leading-[1.02]">
-            Ta stratégie mérite mieux
+            Décide juste.
             <br />
-            <span className="text-accent">qu&apos;un tableur.</span>
+            <span className="text-accent">Avance vite.</span>
           </h1>
           <p className="mt-6 text-lg text-gray-600 max-w-xl leading-relaxed">
-            Cogniwis remplace les frameworks confus par un vrai conseiller.
-            Oni te pose les bonnes questions, isole ce qui bloque, et te
-            donne{" "}
+            Cogniwis remplace les frameworks flous par un conseiller.
+            Oni analyse ta situation, identifie le point de blocage, et
+            propose{" "}
             <em className="not-italic font-semibold text-accent-dark">
-              une seule action
+              une action précise
             </em>{" "}
-            à lancer aujourd&apos;hui.
+            à exécuter dans la journée.
           </p>
 
           <div className="mt-9 flex items-center gap-3 flex-wrap justify-center">
@@ -84,7 +84,7 @@ export default async function LandingPage() {
               href="/chat"
               className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-pill bg-accent text-white font-semibold text-[15px] hover:bg-accent-dark shadow-card transition-all hover:scale-[1.02]"
             >
-              Commencer gratuitement
+              Lancer une session
               <svg
                 width="16"
                 height="16"
@@ -136,8 +136,8 @@ export default async function LandingPage() {
             Ce que fait Cogniwis
           </div>
           <h2 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900 leading-[1.05]">
-            Écoute. Diagnostique.{" "}
-            <span className="text-accent">Débloque.</span>
+            Analyser. Prioriser.{" "}
+            <span className="text-accent">Exécuter.</span>
           </h2>
 
           <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -190,13 +190,13 @@ export default async function LandingPage() {
                 Témoignages
               </div>
               <h2 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900 leading-[1.05]">
-                Ceux qui ont arrêté
+                Ceux qui ont clarifié
                 <br />
-                <span className="text-accent">de tourner en rond.</span>
+                <span className="text-accent">leur prochaine décision.</span>
               </h2>
               <p className="mt-6 text-gray-600 max-w-md leading-relaxed">
-                Cogniwis est en beta privée. Voilà ce que nos premiers
-                utilisateurs nous ont envoyé après leur diagnostic.
+                Cogniwis est en bêta privée. Retour des premiers
+                utilisateurs après leur diagnostic.
               </p>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-6 px-6">
@@ -254,7 +254,7 @@ export default async function LandingPage() {
           </div>
           <h2 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900 leading-[1.05]">
             Trois étapes.{" "}
-            <span className="text-accent">Zéro formulaire.</span>
+            <span className="text-accent">Une méthode.</span>
           </h2>
 
           <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-px bg-gray-100 rounded-2xl overflow-hidden border border-gray-100">
@@ -299,16 +299,16 @@ export default async function LandingPage() {
             <div className="relative grid lg:grid-cols-[1.3fr_0.7fr] gap-8 items-center">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.16em] text-accent-dark font-semibold">
-                  Prêt à trancher ?
+                  Prochaine étape
                 </div>
                 <h2 className="mt-3 text-3xl sm:text-5xl font-semibold tracking-tight leading-[1.05] text-gray-900">
-                  5 minutes.{" "}
-                  <span className="text-accent">Une décision claire.</span>
+                  Cinq minutes,{" "}
+                  <span className="text-accent">une décision claire.</span>
                 </h2>
                 <p className="mt-5 text-gray-700 max-w-lg leading-relaxed">
-                  Tu écris, Oni écoute. Il te renvoie un diagnostic complet et
-                  une action précise à lancer aujourd&apos;hui. Sans engagement,
-                  sans compte à créer.
+                  Session guidée avec Oni. Diagnostic complet des 7 piliers,
+                  action prioritaire à exécuter dans la journée. Aucun
+                  engagement, aucun compte à créer.
                 </p>
               </div>
               <div className="flex lg:justify-end">

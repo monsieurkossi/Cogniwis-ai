@@ -11,9 +11,9 @@ import { RecapCard } from "@/components/RecapCard";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { ChatMessage, InteractionMode, OniGender } from "@/lib/types";
 
-const ONI_INTRO_MALE = `Salut, moi c'est Oni. Je suis là pour t'aider à y voir clair sur ton activité et décider quoi faire ensuite.
+const ONI_INTRO_MALE = `Bienvenue. Je suis Oni, ton conseiller Cogniwis. Objectif de cette session : clarifier ta situation et identifier la prochaine décision à prendre.
 
-Dis-moi ce qui te préoccupe en ce moment — ou clique une des situations en dessous si t'as pas envie d'écrire un pavé.`;
+Commence par décrire ce qui te préoccupe. Une des situations proposées peut aussi servir de point de départ.`;
 
 const ONI_INTRO_FEMALE = ONI_INTRO_MALE;
 
@@ -188,13 +188,14 @@ export default function ChatPage() {
             <div className="flex flex-col items-center text-center">
               <OniAvatar size={112} />
               <h1 className="mt-8 text-4xl sm:text-5xl font-semibold text-gray-900 tracking-tight leading-[1.1]">
-                Salut.
+                Bienvenue.
                 <br />
-                <span className="text-gray-400">On fait le point ?</span>
+                <span className="text-accent">On analyse ta situation.</span>
               </h1>
               <p className="mt-5 text-gray-600 max-w-md mx-auto leading-relaxed">
-                Je suis Oni. En 5 minutes, on éclaircit ce qui coince et
-                j&apos;isole une seule action utile à lancer aujourd&apos;hui.
+                Session guidée avec Oni. Cinq à huit questions ciblées,
+                puis un diagnostic et une action précise à exécuter dans
+                la journée.
               </p>
 
               {/* Toggle de ton — pas un avatar, juste un choix de voix. */}
