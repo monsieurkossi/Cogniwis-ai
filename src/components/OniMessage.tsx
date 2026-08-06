@@ -8,12 +8,14 @@ interface Props {
 export function OniMessage({ content, streaming = false }: Props) {
   return (
     <div className="flex gap-3 items-start">
-      <div className="shrink-0 mt-1">
-        <OniAvatar size={32} speaking={streaming} />
+      <div className="shrink-0 mt-0.5">
+        <OniAvatar size={28} speaking={streaming} />
       </div>
-      <div className="max-w-[calc(100%-3rem)]">
-        <div className="text-xs text-gray-500 mb-1 font-medium">Oni</div>
-        <div className="bg-surface-1 border border-gray-200 rounded-card shadow-card px-4 py-3 text-gray-900 whitespace-pre-wrap leading-relaxed">
+      <div className="max-w-[calc(100%-3rem)] flex-1 min-w-0">
+        <div className="text-[11px] text-gray-500 mb-1 font-medium uppercase tracking-wide">
+          Oni · conseiller
+        </div>
+        <div className="text-gray-900 whitespace-pre-wrap leading-[1.65] text-[15px]">
           {content}
           {streaming && !content && (
             <span className="typing-dots">

@@ -77,6 +77,13 @@ export default function ChatPage() {
   }, [messages, streamBuffer, recap]);
 
   const intro = gender === "elle" ? ONI_INTRO_FEMALE : ONI_INTRO_MALE;
+  // Compteurs pour le panneau contexte à droite. Le message d'intro d'Oni
+  // compte pour 1 puisqu'il "démarre" la session, le stream courant aussi.
+  const assistantTurns =
+    messages.filter((m) => m.role === "assistant").length +
+    1 +
+    (streaming ? 1 : 0);
+  const userTurns = messages.filter((m) => m.role === "user").length;
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -177,7 +184,7 @@ export default function ChatPage() {
           }}
         />
       )}
-      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10">
+      <div className={`${started ? "max-w-6xl" : "max-w-3xl"} mx-auto px-4 py-6 sm:py-10`}>
         {!started ? (
           <div className="flex flex-col items-center gap-10 pt-6">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-surface-1 border border-gray-200 text-xs font-medium text-gray-600 shadow-card">
@@ -323,65 +330,76 @@ export default function ChatPage() {
             </details>
           </div>
         ) : (
-          <div className="flex flex-col h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5rem)]">
-            <div className="flex items-center justify-between gap-3 pb-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <OniAvatar size={40} speaking={streaming} />
-                  <span
-                    className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface ${
-                      streaming ? "bg-accent animate-pulse" : "bg-status-solid"
-                    }`}
-                  />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 leading-tight">
-                    Oni
+          <div className="grid lg:grid-cols-[1fr_280px] gap-6 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5rem)]">
+            <div className="flex flex-col min-w-0 bg-surface-1 border border-gray-200 rounded-2xl shadow-card overflow-hidden">
+              {/* Header conversation */}
+              <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100 bg-surface-1">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <OniAvatar size={36} speaking={streaming} />
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface-1 ${
+                        streaming ? "bg-accent animate-pulse" : "bg-status-solid"
+                      }`}
+                    />
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {streaming ? "Écrit…" : `En ligne · ton ${gender === "il" ? "masculin" : "féminin"}`}
+                  <div>
+                    <div className="font-semibold text-gray-900 leading-tight">
+                      Oni · session en cours
+                    </div>
+                    <div className="text-[11px] text-gray-500 flex items-center gap-2">
+                      <span>
+                        {streaming
+                          ? "Analyse en cours…"
+                          : recap
+                            ? "Récap prêt à valider"
+                            : `${assistantTurns} question${assistantTurns > 1 ? "s" : ""} posée${assistantTurns > 1 ? "s" : ""}`}
+                      </span>
+                      <span className="h-1 w-1 rounded-full bg-gray-300" />
+                      <span>ton {gender === "il" ? "masculin" : "féminin"}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <InlineModePills
-                mode={mode}
-                onChange={handleModeChange}
-                voiceSupported={voice.isSupported}
-                compact
-              />
-            </div>
-
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto py-6 space-y-5"
-            >
-              <OniMessage content={intro} />
-              {messages.map((m, idx) =>
-                m.role === "assistant" ? (
-                  <OniMessage key={idx} content={m.content} />
-                ) : (
-                  <UserMessage key={idx} content={m.content} />
-                )
-              )}
-              {streaming && (
-                <OniMessage content={streamBuffer} streaming />
-              )}
-              {recap && !streaming && (
-                <RecapCard
-                  recap={recap}
-                  onConfirm={confirmRecap}
-                  onEdit={editRecap}
-                  loading={savingRecap}
+                <InlineModePills
+                  mode={mode}
+                  onChange={handleModeChange}
+                  voiceSupported={voice.isSupported}
+                  compact
                 />
-              )}
-              {error && (
-                <div className="text-sm text-status-critical bg-status-critical-bg border border-status-critical/30 rounded-card p-3">
-                  {error}
-                </div>
-              )}
-            </div>
+              </div>
 
-            <div className="pt-4 border-t border-gray-200">
+              {/* Stream messages */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto px-5 py-6 space-y-6"
+              >
+                <OniMessage content={intro} />
+                {messages.map((m, idx) =>
+                  m.role === "assistant" ? (
+                    <OniMessage key={idx} content={m.content} />
+                  ) : (
+                    <UserMessage key={idx} content={m.content} />
+                  )
+                )}
+                {streaming && (
+                  <OniMessage content={streamBuffer} streaming />
+                )}
+                {recap && !streaming && (
+                  <RecapCard
+                    recap={recap}
+                    onConfirm={confirmRecap}
+                    onEdit={editRecap}
+                    loading={savingRecap}
+                  />
+                )}
+                {error && (
+                  <div className="text-sm text-status-critical bg-status-critical-bg border border-status-critical/30 rounded-card p-3">
+                    {error}
+                  </div>
+                )}
+              </div>
+
+              <div className="px-5 pt-3 pb-4 border-t border-gray-100 bg-surface-1">
               {mode === "voice" && !recap ? (
                 <VoiceStage
                   streaming={streaming || savingRecap}
@@ -423,10 +441,164 @@ export default function ChatPage() {
                   }
                 />
               )}
+              </div>
             </div>
+
+            {/* Side context panel (desktop only) */}
+            <aside className="hidden lg:flex flex-col gap-4 h-full">
+              <SessionPanel
+                assistantTurns={assistantTurns}
+                userTurns={userTurns}
+                phase={recap ? "recap" : "collect"}
+                startedAt={startedAt.current}
+              />
+            </aside>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface SessionPanelProps {
+  assistantTurns: number;
+  userTurns: number;
+  phase: "collect" | "recap";
+  startedAt: string;
+}
+
+function SessionPanel({
+  assistantTurns,
+  userTurns,
+  phase,
+  startedAt,
+}: SessionPanelProps) {
+  const totalTarget = 8;
+  const progress = Math.min(assistantTurns, totalTarget);
+  const pct = (progress / totalTarget) * 100;
+  const elapsedMin = Math.max(
+    1,
+    Math.round((Date.now() - new Date(startedAt).getTime()) / 60000)
+  );
+  return (
+    <>
+      <div className="rounded-2xl bg-surface-1 border border-gray-200 shadow-card p-5">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-semibold">
+          Progression
+        </div>
+        <div className="mt-3 flex items-baseline justify-between">
+          <div className="text-2xl font-semibold text-gray-900 leading-none">
+            {progress}
+            <span className="text-sm text-gray-400 font-medium">
+              /{totalTarget}
+            </span>
+          </div>
+          <div className="text-[11px] text-gray-500">questions</div>
+        </div>
+        <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-accent to-accent-dark transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="mt-4 space-y-2 text-[13px]">
+          <Row label="Phase">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-pill text-[11px] font-medium ${
+                phase === "recap"
+                  ? "bg-accent-light text-accent-dark border border-accent/30"
+                  : "bg-surface-2 text-gray-700 border border-gray-200"
+              }`}
+            >
+              <span
+                className={`h-1 w-1 rounded-full ${
+                  phase === "recap" ? "bg-accent" : "bg-gray-400"
+                }`}
+              />
+              {phase === "recap" ? "Récapitulatif" : "Collecte"}
+            </span>
+          </Row>
+          <Row label="Tes réponses">{userTurns}</Row>
+          <Row label="Temps écoulé">≈ {elapsedMin} min</Row>
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-surface-1 border border-gray-200 shadow-card p-5">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-semibold">
+          Objectif de la session
+        </div>
+        <ol className="mt-3 space-y-2.5 text-[13px] text-gray-700">
+          {[
+            "Comprendre ton activité et ton stade",
+            "Identifier l'écart entre l'objectif déclaré et le vrai objectif",
+            "Valider un récap avec toi",
+            "Livrer diagnostic + action prioritaire",
+          ].map((step, i) => {
+            const done =
+              phase === "recap" ? i < 3 : i === 0 && assistantTurns > 1;
+            return (
+              <li key={step} className="flex items-start gap-2.5">
+                <span
+                  className={`mt-0.5 h-4 w-4 shrink-0 rounded-full flex items-center justify-center ${
+                    done
+                      ? "bg-status-solid text-white"
+                      : "bg-surface-2 text-gray-400 border border-gray-200"
+                  }`}
+                >
+                  {done ? (
+                    <svg
+                      width="8"
+                      height="8"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <span className="text-[10px] font-mono">{i + 1}</span>
+                  )}
+                </span>
+                <span
+                  className={
+                    done ? "text-gray-500 line-through" : "text-gray-800"
+                  }
+                >
+                  {step}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-accent-dark text-white p-5 shadow-card">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-white/60 font-semibold">
+          Rappel méthode
+        </div>
+        <p className="mt-3 text-[13px] leading-relaxed text-white/85">
+          Oni pose 5 à 8 questions maximum. Chaque réponse est traitée en
+          contexte, sans redemander ce qu&apos;il peut déduire.
+        </p>
+      </div>
+    </>
+  );
+}
+
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-gray-500">{label}</span>
+      <span className="text-gray-900 font-medium">{children}</span>
     </div>
   );
 }
