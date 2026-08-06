@@ -10,6 +10,7 @@ import { ActionCard } from "@/components/ActionCard";
 import { DeliverableCard } from "@/components/DeliverableCard";
 import { OniFab } from "@/components/OniFab";
 import { ProgressTracker } from "@/components/ProgressTracker";
+import { ActionSubStepper, type ActionPhase } from "@/components/ActionSubStepper";
 import { createClient } from "@/lib/supabase/client";
 import type { Action, ClientTouch, Diagnostic } from "@/lib/types";
 import type { VerbatimAnalysis } from "@/app/api/analyze-verbatims/route";
@@ -399,9 +400,19 @@ function ActionInner() {
         ? ["Diagnostic", "Action"]
         : ["Diagnostic"];
 
+  // Sous-phase du cycle d'action pour le stepper horizontal.
+  const currentPhase: ActionPhase = (() => {
+    if (state === "showing_results" || state === "generating_next")
+      return "resultat";
+    if (state === "analyzing") return "analyse";
+    if (state === "waiting_verbatims") return "attente";
+    if (deliverablesSent > 0) return "envoi";
+    return "preparation";
+  })();
+
   return (
     <div className="min-h-screen bg-surface">
-      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-10">
+      <div className={`${action ? "max-w-6xl" : "max-w-4xl"} mx-auto px-4 py-6 sm:py-10`}>
         <div className="mb-6">
           <ProgressStepper active={stepperActive} done={stepperDone} />
         </div>
@@ -438,26 +449,32 @@ function ActionInner() {
         )}
 
         {action && state !== "loading" && state !== "error" && (
-          <div className="space-y-6">
-            <ProgressTracker
-              pillarName={action.pillar}
-              currentStep={action.step_number}
-              totalSteps={action.total_steps}
-              deliverablesSent={deliverablesSent}
-              deliverablesTotal={deliverablesTotal}
-              kpiLabel="Réponses reçues"
-              kpiCurrent={
-                answeredCount > 0
-                  ? answeredCount
-                  : filledVerbatimKeys.length
-              }
-              kpiTarget={kpiTargetNumber}
-            />
+          <div className="grid lg:grid-cols-[1fr_320px] gap-6">
+            <div className="min-w-0 space-y-6">
+              <ActionSubStepper phase={currentPhase} />
+
+              {/* Mobile fallback : ProgressTracker sticky top */}
+              <div className="lg:hidden">
+                <ProgressTracker
+                  pillarName={action.pillar}
+                  currentStep={action.step_number}
+                  totalSteps={action.total_steps}
+                  deliverablesSent={deliverablesSent}
+                  deliverablesTotal={deliverablesTotal}
+                  kpiLabel="Réponses reçues"
+                  kpiCurrent={
+                    answeredCount > 0
+                      ? answeredCount
+                      : filledVerbatimKeys.length
+                  }
+                  kpiTarget={kpiTargetNumber}
+                />
+              </div>
 
             {state !== "generating_next" && (
               <>
                 <OniMessage
-                  content={`On attaque avec le pilier "${action.pillar}". Objectif : ${action.title}. ${
+                  content={`Pilier "${action.pillar}" — action prioritaire. Objectif : ${action.title}. ${
                     action.description ?? ""
                   }`}
                 />
@@ -798,6 +815,23 @@ function ActionInner() {
                 </div>
               </div>
             )}
+            </div>
+
+            {/* Right side panel — properties of the current action */}
+            <aside className="hidden lg:flex flex-col gap-4 h-fit lg:sticky lg:top-4">
+              <ActionRightPanel
+                action={action}
+                phase={currentPhase}
+                deliverablesSent={deliverablesSent}
+                deliverablesTotal={deliverablesTotal}
+                kpiCurrent={
+                  answeredCount > 0
+                    ? answeredCount
+                    : filledVerbatimKeys.length
+                }
+                kpiTarget={kpiTargetNumber}
+              />
+            </aside>
           </div>
         )}
       </div>
@@ -808,6 +842,146 @@ function ActionInner() {
             : "L'utilisateur est sur la page action (chargement ou erreur)."
         }
       />
+    </div>
+  );
+}
+
+interface ActionRightPanelProps {
+  action: Action;
+  phase: ActionPhase;
+  deliverablesSent: number;
+  deliverablesTotal: number;
+  kpiCurrent: number;
+  kpiTarget: number;
+}
+
+const PHASE_LABEL: Record<ActionPhase, string> = {
+  preparation: "Préparation",
+  envoi: "Envoi en cours",
+  attente: "En attente de retours",
+  analyse: "Analyse des verbatims",
+  resultat: "Résultat livré",
+};
+
+function ActionRightPanel({
+  action,
+  phase,
+  deliverablesSent,
+  deliverablesTotal,
+  kpiCurrent,
+  kpiTarget,
+}: ActionRightPanelProps) {
+  const sendPct =
+    deliverablesTotal <= 0
+      ? 0
+      : Math.round((deliverablesSent / deliverablesTotal) * 100);
+  const kpiPct =
+    kpiTarget <= 0
+      ? 0
+      : Math.min(100, Math.round((kpiCurrent / kpiTarget) * 100));
+
+  return (
+    <>
+      <div className="rounded-2xl bg-surface-1 border border-gray-200 shadow-card p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-semibold">
+            Statut
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-pill text-[11px] font-medium bg-accent-light text-accent-dark border border-accent/30">
+            <span className="h-1 w-1 rounded-full bg-accent" />
+            {PHASE_LABEL[phase]}
+          </span>
+        </div>
+        <div className="mt-3 text-xl font-semibold text-gray-900 leading-tight">
+          {action.pillar}
+        </div>
+        <div className="text-xs text-gray-500 mt-0.5">
+          Étape {action.step_number}/{action.total_steps}
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-surface-1 border border-gray-200 shadow-card p-5 space-y-4">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-semibold">
+          Propriétés
+        </div>
+        <PropRow
+          label="Temps estimé"
+          value={action.estimated_time ?? "—"}
+        />
+        <PropRow label="KPI cible" value={action.kpi_target ?? "—"} />
+        <PropRow
+          label="Contacts"
+          value={`${deliverablesTotal} personne${deliverablesTotal > 1 ? "s" : ""}`}
+        />
+      </div>
+
+      {deliverablesTotal > 0 && (
+        <div className="rounded-2xl bg-surface-1 border border-gray-200 shadow-card p-5 space-y-4">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-semibold">
+            Avancement
+          </div>
+          <ProgressRow
+            label="Messages envoyés"
+            current={deliverablesSent}
+            total={deliverablesTotal}
+            pct={sendPct}
+          />
+          {kpiTarget > 0 && (
+            <ProgressRow
+              label="Réponses reçues"
+              current={kpiCurrent}
+              total={kpiTarget}
+              pct={kpiPct}
+              accent
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function PropRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 text-[13px]">
+      <span className="text-gray-500 shrink-0">{label}</span>
+      <span className="text-gray-900 font-medium text-right">{value}</span>
+    </div>
+  );
+}
+
+function ProgressRow({
+  label,
+  current,
+  total,
+  pct,
+  accent = false,
+}: {
+  label: string;
+  current: number;
+  total: number;
+  pct: number;
+  accent?: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-[12px]">
+        <span className="text-gray-600">{label}</span>
+        <span className="text-gray-900 font-medium">
+          {current}
+          <span className="text-gray-400">/{total}</span>
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${
+            accent
+              ? "bg-gradient-to-r from-accent to-accent-dark"
+              : "bg-accent/60"
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
