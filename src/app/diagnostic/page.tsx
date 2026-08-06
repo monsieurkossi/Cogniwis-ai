@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { OniMessage } from "@/components/OniMessage";
 import { ProgressStepper } from "@/components/ProgressStepper";
 import { PillarList } from "@/components/PillarList";
 import { OniFab } from "@/components/OniFab";
@@ -289,31 +288,68 @@ function DiagnosticInner() {
         )}
 
         {diagnostic && (
-          <div className="space-y-6">
-            <OniMessage content={diagnostic.verdict} />
+          <div className="space-y-6 pb-28">
+            {/* HERO SCORE + VERDICT */}
+            <div className="relative rounded-3xl bg-gradient-to-br from-gray-900 via-gray-900 to-accent-dark text-white p-6 sm:p-8 overflow-hidden shadow-card">
+              <div
+                aria-hidden
+                className="absolute -top-20 -right-20 h-72 w-72 rounded-full bg-accent/40 blur-3xl"
+              />
+              <div
+                aria-hidden
+                className="absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-accent-dark/60 blur-3xl"
+              />
+              <div className="relative grid lg:grid-cols-[220px_1fr] gap-8 items-center">
+                <ScoreRadial score={diagnostic.global_score} />
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-white/60 font-semibold">
+                    Diagnostic Cogniwis
+                  </div>
+                  <h1 className="mt-2 text-2xl sm:text-3xl font-semibold leading-tight tracking-tight">
+                    {diagnostic.verdict}
+                  </h1>
+                  <div className="mt-5 flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] uppercase tracking-wide text-white/60">
+                      Pilier prioritaire
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-white text-gray-900 font-semibold text-sm">
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                      {diagnostic.priority_pillar}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
+            {/* RECADRAGE */}
             {diagnostic.reframing && (
-              <div className="bg-surface-1 border border-gray-200 border-l-4 border-l-accent rounded-card p-4 shadow-card">
-                <div className="text-xs uppercase tracking-wide text-accent-dark font-semibold mb-1">
+              <div className="rounded-2xl bg-surface-1 border border-gray-200 p-6 shadow-card">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-accent-dark font-semibold flex items-center gap-2">
+                  <span className="h-1 w-1 rounded-full bg-accent" />
                   Recadrage
                 </div>
-                <p className="text-gray-800 leading-relaxed">
+                <p className="mt-3 text-gray-800 leading-relaxed">
                   {diagnostic.reframing}
                 </p>
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div className="bg-surface-2 rounded-card p-3">
-                    <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
+                  <div className="rounded-xl bg-surface-2 p-4">
+                    <div className="text-[11px] text-gray-500 font-semibold uppercase tracking-wide">
                       Ce que tu as dit vouloir
                     </div>
-                    <div className="text-gray-800 mt-1">
+                    <div className="text-gray-800 mt-1.5 leading-snug">
                       {diagnostic.declared_objective ?? "—"}
                     </div>
                   </div>
-                  <div className="bg-accent-light rounded-card p-3">
-                    <div className="text-xs text-accent-dark font-semibold uppercase tracking-wide">
+                  <div className="hidden sm:flex items-center justify-center text-gray-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M13 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                  <div className="rounded-xl bg-accent-light border border-accent/20 p-4">
+                    <div className="text-[11px] text-accent-dark font-semibold uppercase tracking-wide">
                       Ce que tu veux vraiment
                     </div>
-                    <div className="text-gray-900 mt-1">
+                    <div className="text-gray-900 mt-1.5 leading-snug font-medium">
                       {diagnostic.real_objective ?? "—"}
                     </div>
                   </div>
@@ -321,31 +357,17 @@ function DiagnosticInner() {
               </div>
             )}
 
-            <div className="bg-surface-1 border border-gray-200 rounded-card p-5 shadow-card">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                    Score global
-                  </div>
-                  <div className="text-4xl font-bold text-gray-900 mt-1">
-                    {diagnostic.global_score}
-                    <span className="text-lg text-gray-400 font-medium">/100</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                    Priorité
-                  </div>
-                  <div className="mt-1 inline-block px-3 py-1 rounded-pill bg-accent text-white font-semibold text-sm">
-                    {diagnostic.priority_pillar}
-                  </div>
-                </div>
+            {/* RAISONNEMENT ONI */}
+            <div className="rounded-2xl bg-surface-1 border border-gray-200 p-6 shadow-card">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-gray-500 font-semibold flex items-center gap-2">
+                <span className="h-1 w-1 rounded-full bg-gray-400" />
+                Ce qu&apos;Oni retient
               </div>
-              <p className="text-sm text-gray-700 leading-relaxed border-t border-gray-100 pt-3">
+              <p className="mt-3 text-gray-700 leading-relaxed">
                 {diagnostic.reasoning}
               </p>
               {diagnostic.active_rules?.length > 0 && (
-                <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+                <div className="mt-4 flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs text-gray-500">Règles activées :</span>
                   {diagnostic.active_rules.map((r) => (
                     <span
@@ -359,21 +381,51 @@ function DiagnosticInner() {
               )}
             </div>
 
+            {/* PILIERS EN BENTO */}
             <div>
-              <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">
-                Tes 7 piliers
+              <div className="flex items-baseline justify-between mb-4">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-gray-500 font-semibold flex items-center gap-2">
+                    <span className="h-1 w-1 rounded-full bg-gray-400" />
+                    Tes 7 piliers
+                  </div>
+                  <h2 className="mt-1 text-xl font-semibold text-gray-900 tracking-tight">
+                    Vue d&apos;ensemble
+                  </h2>
+                </div>
+                <ScoreLegend />
               </div>
               <PillarList diagnostic={diagnostic} />
             </div>
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={goToAction}
-                className="px-5 py-3 rounded-card bg-accent text-white font-semibold hover:bg-accent-dark transition-colors"
-              >
-                C&apos;est parti, on commence →
-              </button>
+            {/* CTA STICKY */}
+            <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
+              <div className="max-w-4xl mx-auto px-4 pb-4">
+                <div className="pointer-events-auto rounded-2xl bg-gray-900 text-white p-4 shadow-2xl flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-white/60 font-semibold">
+                      Prochaine étape
+                    </div>
+                    <div className="text-sm font-semibold">
+                      Attaquer{" "}
+                      <span className="text-accent-light">
+                        {diagnostic.priority_pillar}
+                      </span>{" "}
+                      avec une action guidée
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={goToAction}
+                    className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-pill bg-white text-gray-900 font-semibold text-sm hover:bg-white/95 transition-transform hover:scale-[1.02]"
+                  >
+                    On commence
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M13 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -385,6 +437,77 @@ function DiagnosticInner() {
             : "L'utilisateur est sur la page diagnostic (chargement ou erreur)."
         }
       />
+    </div>
+  );
+}
+
+function ScoreRadial({ score }: { score: number }) {
+  const radius = 76;
+  const stroke = 14;
+  const c = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(100, score));
+  const dash = (clamped / 100) * c;
+  const scoreColor =
+    clamped <= 29
+      ? "#ef4444"
+      : clamped <= 55
+        ? "#f59e0b"
+        : "#10b981";
+  return (
+    <div className="relative h-[200px] w-[200px] mx-auto lg:mx-0">
+      <svg
+        viewBox="0 0 200 200"
+        width="200"
+        height="200"
+        className="-rotate-90"
+      >
+        <circle
+          cx="100"
+          cy="100"
+          r={radius}
+          stroke="rgba(255,255,255,0.15)"
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <circle
+          cx="100"
+          cy="100"
+          r={radius}
+          stroke={scoreColor}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c}`}
+          fill="none"
+          style={{ transition: "stroke-dasharray 800ms ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-white/60 font-semibold">
+          Score global
+        </div>
+        <div className="mt-1 text-5xl font-semibold leading-none">
+          {clamped}
+        </div>
+        <div className="mt-1 text-xs text-white/50">/100</div>
+      </div>
+    </div>
+  );
+}
+
+function ScoreLegend() {
+  const items: { label: string; color: string }[] = [
+    { label: "Critique", color: "bg-status-critical" },
+    { label: "Fragile", color: "bg-status-fragile" },
+    { label: "Solide", color: "bg-status-solid" },
+  ];
+  return (
+    <div className="hidden sm:flex items-center gap-3 text-[11px] text-gray-500">
+      {items.map((i) => (
+        <span key={i.label} className="inline-flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${i.color}`} />
+          {i.label}
+        </span>
+      ))}
     </div>
   );
 }

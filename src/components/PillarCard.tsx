@@ -25,11 +25,59 @@ interface Props {
   pillar: Pillar;
   priority?: boolean;
   defaultOpen?: boolean;
+  /** "compact" = tuile de bento (nom + score + barre), "row" = ligne détaillée. */
+  variant?: "row" | "compact";
 }
 
-export function PillarCard({ pillar, priority = false, defaultOpen = false }: Props) {
+export function PillarCard({
+  pillar,
+  priority = false,
+  defaultOpen = false,
+  variant = "row",
+}: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const style = STATUS_STYLES[pillar.status];
+
+  if (variant === "compact") {
+    return (
+      <div
+        className={`group relative bg-surface-1 rounded-xl border p-4 transition-all hover:shadow-card ${
+          priority
+            ? "border-accent ring-1 ring-accent/30 shadow-card"
+            : "border-gray-200"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+              {style.label}
+            </div>
+            <h3 className="mt-0.5 font-semibold text-gray-900 truncate">
+              {pillar.name}
+            </h3>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-gray-900 leading-none">
+              {pillar.score}
+            </div>
+            <div className="text-[10px] text-gray-400">/100</div>
+          </div>
+        </div>
+        <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className={`h-full rounded-full ${style.bar}`}
+            style={{ width: `${Math.max(4, pillar.score)}%` }}
+          />
+        </div>
+        {priority && (
+          <div className="mt-3 text-[11px] uppercase tracking-wide text-accent-dark font-semibold flex items-center gap-1">
+            <span className="h-1 w-1 rounded-full bg-accent" />
+            Priorité
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
