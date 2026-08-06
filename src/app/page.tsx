@@ -342,7 +342,7 @@ export default async function LandingPage() {
 const FEATURES = [
   {
     title: "Vraie conversation",
-    body: "5 à 8 questions ciblées avec Oni. Voix ou texte. Pas un formulaire déguisé en chat.",
+    body: "Autant de questions ciblées que nécessaire, voix ou texte. Oni creuse jusqu'à comprendre — pas un formulaire déguisé.",
     icon: (
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     ),
@@ -398,7 +398,7 @@ const FEATURES = [
 const STEPS = [
   {
     title: "Conversation",
-    body: "Oni te pose 5 à 8 questions ciblées. Voix ou texte. Il retient ce qui compte, ignore le reste.",
+    body: "Oni te pose des questions ciblées. Voix ou texte. Il creuse jusqu'à comprendre — ni plus, ni moins.",
     time: "≈ 3 min",
   },
   {

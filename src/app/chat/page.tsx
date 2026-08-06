@@ -312,9 +312,10 @@ export default function ChatPage() {
               <div className="mt-4 bg-surface-1 border border-gray-200 rounded-2xl p-5 text-sm text-gray-600 space-y-2 shadow-card">
                 <p>
                   <span className="font-semibold text-gray-900">
-                    5 à 8 questions ciblées.
+                    Questions ciblées.
                   </span>{" "}
-                  Pas un formulaire, une vraie discussion.
+                  Oni creuse jusqu&apos;à comprendre. Pas un formulaire, une
+                  vraie discussion.
                 </p>
                 <p>
                   <span className="font-semibold text-gray-900">Un récap.</span>{" "}
@@ -322,9 +323,9 @@ export default function ChatPage() {
                 </p>
                 <p>
                   <span className="font-semibold text-gray-900">
-                    Un diagnostic + une action.
+                    Diagnostic + action.
                   </span>{" "}
-                  Tes 7 piliers évalués, une seule chose à lancer aujourd&apos;hui.
+                  Les 7 piliers évalués, une seule chose à lancer aujourd&apos;hui.
                 </p>
               </div>
             </details>
@@ -473,9 +474,6 @@ function SessionPanel({
   phase,
   startedAt,
 }: SessionPanelProps) {
-  const totalTarget = 8;
-  const progress = Math.min(assistantTurns, totalTarget);
-  const pct = (progress / totalTarget) * 100;
   const elapsedMin = Math.max(
     1,
     Math.round((Date.now() - new Date(startedAt).getTime()) / 60000)
@@ -483,41 +481,34 @@ function SessionPanel({
   return (
     <>
       <div className="rounded-2xl bg-surface-1 border border-gray-200 shadow-card p-5">
-        <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-semibold">
-          Progression
-        </div>
-        <div className="mt-3 flex items-baseline justify-between">
-          <div className="text-2xl font-semibold text-gray-900 leading-none">
-            {progress}
-            <span className="text-sm text-gray-400 font-medium">
-              /{totalTarget}
-            </span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-gray-500 font-semibold">
+            Session en cours
           </div>
-          <div className="text-[11px] text-gray-500">questions</div>
-        </div>
-        <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-accent to-accent-dark transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <div className="mt-4 space-y-2 text-[13px]">
-          <Row label="Phase">
+          <span
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-pill text-[11px] font-medium ${
+              phase === "recap"
+                ? "bg-accent-light text-accent-dark border border-accent/30"
+                : "bg-surface-2 text-gray-700 border border-gray-200"
+            }`}
+          >
             <span
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-pill text-[11px] font-medium ${
-                phase === "recap"
-                  ? "bg-accent-light text-accent-dark border border-accent/30"
-                  : "bg-surface-2 text-gray-700 border border-gray-200"
+              className={`h-1 w-1 rounded-full ${
+                phase === "recap" ? "bg-accent" : "bg-gray-400"
               }`}
-            >
-              <span
-                className={`h-1 w-1 rounded-full ${
-                  phase === "recap" ? "bg-accent" : "bg-gray-400"
-                }`}
-              />
-              {phase === "recap" ? "Récapitulatif" : "Collecte"}
-            </span>
-          </Row>
+            />
+            {phase === "recap" ? "Récapitulatif" : "Collecte"}
+          </span>
+        </div>
+        <div className="mt-4 flex items-baseline justify-between">
+          <div className="text-3xl font-semibold text-gray-900 leading-none">
+            {assistantTurns}
+          </div>
+          <div className="text-[11px] text-gray-500">
+            question{assistantTurns > 1 ? "s" : ""} posée{assistantTurns > 1 ? "s" : ""}
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-100 space-y-2 text-[13px]">
           <Row label="Tes réponses">{userTurns}</Row>
           <Row label="Temps écoulé">≈ {elapsedMin} min</Row>
         </div>
@@ -580,8 +571,9 @@ function SessionPanel({
           Rappel méthode
         </div>
         <p className="mt-3 text-[13px] leading-relaxed text-white/85">
-          Oni pose 5 à 8 questions maximum. Chaque réponse est traitée en
-          contexte, sans redemander ce qu&apos;il peut déduire.
+          Oni pose autant de questions que nécessaire pour scorer tes
+          7 piliers. Il creuse quand un sujet reste flou, il ne redemande
+          pas ce qu&apos;il peut déduire.
         </p>
       </div>
     </>
