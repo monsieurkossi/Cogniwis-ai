@@ -51,114 +51,79 @@ export default async function LandingPage() {
           className="pointer-events-none absolute inset-0 -z-10"
           style={{
             background:
-              "radial-gradient(60% 40% at 85% 15%, rgba(0,34,255,0.12), transparent 60%)",
+              "radial-gradient(70% 45% at 50% 10%, rgba(0,34,255,0.14), transparent 65%), radial-gradient(45% 30% at 15% 55%, rgba(95,125,255,0.10), transparent 70%)",
           }}
         />
-        <div className="max-w-6xl mx-auto px-6 pt-20 pb-24 sm:pt-28 sm:pb-32 grid lg:grid-cols-[1.15fr_0.85fr] gap-12 items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-pill bg-surface-1 border border-gray-200 text-[11px] font-medium text-gray-500 uppercase tracking-[0.14em]">
-              <span className="text-accent">■</span> Strategic Decision OS
-            </div>
-            <h1 className="mt-6 text-[44px] sm:text-[68px] font-semibold tracking-tight text-gray-900 leading-[1.02]">
-              Ta stratégie
-              <br />
-              mérite mieux
-              <br />
-              <span className="text-gray-400">qu&apos;un tableur.</span>
-            </h1>
-            <p className="mt-6 text-lg text-gray-600 max-w-lg leading-relaxed">
-              Cogniwis remplace les frameworks confus par un vrai conseiller.
-              Oni te pose les bonnes questions, isole ce qui bloque, et te
-              donne <em className="not-italic font-semibold text-gray-900">une seule action</em> à
-              lancer aujourd&apos;hui.
-            </p>
-            <div className="mt-8 flex items-center gap-3 flex-wrap">
-              <Link
-                href="/chat"
-                className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-pill bg-gray-900 text-white font-semibold text-[15px] hover:bg-black shadow-card transition-all hover:scale-[1.02]"
-              >
-                Commencer gratuitement
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5">
-                  <path d="M5 12h14M13 5l7 7-7 7" />
-                </svg>
-              </Link>
-              <Link
-                href="/auth/login"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-pill text-gray-700 font-semibold text-[15px] hover:bg-surface-2 transition-colors"
-              >
-                Se connecter
-              </Link>
-            </div>
-            <div className="mt-10 flex items-center gap-5 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 5 5L20 7" /></svg>
-                Sans carte bleue
-              </span>
-              <span className="flex items-center gap-1.5">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 5 5L20 7" /></svg>
-                5 minutes
-              </span>
-              <span className="flex items-center gap-1.5">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 5 5L20 7" /></svg>
-                Sans jargon
-              </span>
-            </div>
+        <div className="max-w-4xl mx-auto px-6 pt-20 pb-24 sm:pt-28 sm:pb-32 flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-pill bg-surface-1 border border-accent/20 text-[11px] font-medium text-accent-dark uppercase tracking-[0.14em] shadow-card">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+            Strategic Decision OS
           </div>
 
-          {/* Aperçu produit — carte flottante montrant le résultat */}
-          <div className="relative">
-            <div
-              aria-hidden
-              className="absolute -inset-8 -z-10 rounded-[32px]"
-              style={{
-                background:
-                  "radial-gradient(60% 50% at 50% 50%, rgba(0,34,255,0.15), transparent 70%)",
-              }}
-            />
-            <div className="rounded-2xl bg-surface-1 border border-gray-200 shadow-card p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <OniAvatar size={32} />
-                  <div>
-                    <div className="text-xs font-semibold text-gray-900">Oni</div>
-                    <div className="text-[11px] text-status-solid">Diagnostic livré</div>
-                  </div>
-                </div>
-                <div className="text-[11px] px-2 py-0.5 rounded-pill bg-status-solid-bg text-status-solid font-medium">
-                  Prêt
-                </div>
-              </div>
-              <div className="rounded-xl border border-gray-100 bg-surface p-4">
-                <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
-                  Pilier prioritaire
-                </div>
-                <div className="mt-1 flex items-baseline justify-between">
-                  <div className="text-xl font-semibold text-gray-900">Acquisition</div>
-                  <div className="text-sm text-gray-500">
-                    <span className="text-status-critical font-semibold">28</span>
-                    <span className="text-gray-400">/100</span>
-                  </div>
-                </div>
-                <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-status-critical to-status-fragile" style={{ width: "28%" }} />
-                </div>
-              </div>
-              <div className="rounded-xl border border-accent/30 bg-accent-light/50 p-4">
-                <div className="text-[11px] uppercase tracking-wide text-accent-dark font-semibold">
-                  Ton action aujourd&apos;hui
-                </div>
-                <div className="mt-1 font-semibold text-gray-900">
-                  Contacter 5 anciens clients avec ce message
-                </div>
-                <div className="mt-2 text-xs text-gray-600 leading-relaxed">
-                  Livrable prêt. KPI clair. Retour dans 48h.
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                <div className="h-6 w-6 rounded-full bg-gradient-to-br from-accent to-accent-dark" />
-                <span>Diagnostic mis à jour il y a 2 min</span>
-              </div>
-            </div>
+          <div className="mt-10">
+            <OniAvatar size={132} />
+          </div>
+
+          <h1 className="mt-10 text-[44px] sm:text-[72px] font-semibold tracking-tight text-gray-900 leading-[1.02]">
+            Ta stratégie mérite mieux
+            <br />
+            <span className="text-accent">qu&apos;un tableur.</span>
+          </h1>
+          <p className="mt-6 text-lg text-gray-600 max-w-xl leading-relaxed">
+            Cogniwis remplace les frameworks confus par un vrai conseiller.
+            Oni te pose les bonnes questions, isole ce qui bloque, et te
+            donne{" "}
+            <em className="not-italic font-semibold text-accent-dark">
+              une seule action
+            </em>{" "}
+            à lancer aujourd&apos;hui.
+          </p>
+
+          <div className="mt-9 flex items-center gap-3 flex-wrap justify-center">
+            <Link
+              href="/chat"
+              className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-pill bg-accent text-white font-semibold text-[15px] hover:bg-accent-dark shadow-card transition-all hover:scale-[1.02]"
+            >
+              Commencer gratuitement
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="transition-transform group-hover:translate-x-0.5"
+              >
+                <path d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </Link>
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-pill text-accent-dark font-semibold text-[15px] hover:bg-accent-light transition-colors"
+            >
+              Se connecter
+            </Link>
+          </div>
+
+          <div className="mt-10 flex items-center gap-5 text-xs text-gray-500 flex-wrap justify-center">
+            {["Sans carte bleue", "5 minutes", "Sans jargon"].map((label) => (
+              <span key={label} className="flex items-center gap-1.5">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  className="text-accent"
+                >
+                  <path d="m5 12 5 5L20 7" />
+                </svg>
+                {label}
+              </span>
+            ))}
           </div>
         </div>
       </section>
@@ -166,26 +131,49 @@ export default async function LandingPage() {
       {/* ================================ FEATURES ============================ */}
       <section className="border-t border-gray-200 bg-surface-1">
         <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-gray-500 font-semibold flex items-center gap-2">
-            <span className="text-accent">■</span> Ce que fait Cogniwis
+          <div className="text-[11px] uppercase tracking-[0.16em] text-accent-dark font-semibold flex items-center gap-2">
+            <span className="h-1 w-1 rounded-full bg-accent" />
+            Ce que fait Cogniwis
           </div>
           <h2 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900 leading-[1.05]">
-            Écoute. Diagnostique. <span className="text-gray-400">Débloque.</span>
+            Écoute. Diagnostique.{" "}
+            <span className="text-accent">Débloque.</span>
           </h2>
 
           <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map((f) => (
+            {FEATURES.map((f, i) => (
               <div
                 key={f.title}
-                className="group relative bg-surface p-6 rounded-2xl border border-transparent hover:border-gray-200 transition-all"
+                className="group relative bg-surface p-6 rounded-2xl border border-gray-100 hover:border-accent/40 hover:shadow-card transition-all"
               >
-                <div className="h-9 w-9 rounded-lg bg-gray-900 text-white flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div
+                  className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                    i % 3 === 0
+                      ? "bg-accent text-white"
+                      : i % 3 === 1
+                        ? "bg-accent-light text-accent-dark border border-accent/20"
+                        : "bg-surface-1 text-accent-dark border border-accent/20"
+                  }`}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     {f.icon}
                   </svg>
                 </div>
-                <div className="mt-6 font-semibold text-gray-900">{f.title}</div>
-                <div className="mt-1.5 text-sm text-gray-600 leading-relaxed">{f.body}</div>
+                <div className="mt-6 font-semibold text-gray-900">
+                  {f.title}
+                </div>
+                <div className="mt-1.5 text-sm text-gray-600 leading-relaxed">
+                  {f.body}
+                </div>
               </div>
             ))}
           </div>
@@ -197,17 +185,18 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
           <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-10 items-end">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-gray-500 font-semibold flex items-center gap-2">
-                <span className="text-accent">■</span> Témoignages
+              <div className="text-[11px] uppercase tracking-[0.16em] text-accent-dark font-semibold flex items-center gap-2">
+                <span className="h-1 w-1 rounded-full bg-accent" />
+                Témoignages
               </div>
               <h2 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900 leading-[1.05]">
                 Ceux qui ont arrêté
                 <br />
-                <span className="text-gray-400">de tourner en rond.</span>
+                <span className="text-accent">de tourner en rond.</span>
               </h2>
               <p className="mt-6 text-gray-600 max-w-md leading-relaxed">
-                Cogniwis est en beta privée. Voilà ce que nos premiers utilisateurs
-                nous ont envoyé après leur diagnostic.
+                Cogniwis est en beta privée. Voilà ce que nos premiers
+                utilisateurs nous ont envoyé après leur diagnostic.
               </p>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-6 px-6">
@@ -218,12 +207,12 @@ export default async function LandingPage() {
                 >
                   <div className="space-y-2">
                     <div className="flex justify-start">
-                      <div className="max-w-[85%] bg-gray-900 text-white text-sm rounded-2xl rounded-bl-md px-3.5 py-2">
+                      <div className="max-w-[85%] bg-accent text-white text-sm rounded-2xl rounded-bl-md px-3.5 py-2">
                         {t.hook}
                       </div>
                     </div>
                     <div className="flex justify-start">
-                      <div className="max-w-[90%] bg-gray-100 text-gray-900 text-sm rounded-2xl rounded-bl-md px-3.5 py-2">
+                      <div className="max-w-[90%] bg-surface-2 text-gray-900 text-sm rounded-2xl rounded-bl-md px-3.5 py-2">
                         {t.quote}
                       </div>
                     </div>
@@ -243,7 +232,9 @@ export default async function LandingPage() {
                       {t.initials}
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-gray-900">{t.name}</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {t.name}
+                      </div>
                       <div className="text-xs text-gray-500">{t.role}</div>
                     </div>
                   </div>
@@ -257,25 +248,36 @@ export default async function LandingPage() {
       {/* ================================ HOW IT WORKS ======================== */}
       <section className="border-t border-gray-200 bg-surface-1">
         <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-gray-500 font-semibold flex items-center gap-2">
-            <span className="text-accent">■</span> Comment ça marche
+          <div className="text-[11px] uppercase tracking-[0.16em] text-accent-dark font-semibold flex items-center gap-2">
+            <span className="h-1 w-1 rounded-full bg-accent" />
+            Comment ça marche
           </div>
           <h2 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900 leading-[1.05]">
-            Trois étapes. <span className="text-gray-400">Zéro formulaire.</span>
+            Trois étapes.{" "}
+            <span className="text-accent">Zéro formulaire.</span>
           </h2>
 
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-px bg-gray-200 rounded-2xl overflow-hidden border border-gray-200">
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-px bg-gray-100 rounded-2xl overflow-hidden border border-gray-100">
             {STEPS.map((s, i) => (
               <div key={s.title} className="bg-surface-1 p-8">
                 <div className="flex items-center justify-between">
-                  <div className="font-mono text-xs text-gray-400">
+                  <div className="font-mono text-xs text-accent">
                     {String(i + 1).padStart(2, "0")}
                   </div>
-                  <div className="h-1.5 w-16 rounded-full bg-gradient-to-r from-accent to-accent-dark" style={{ opacity: 0.3 + i * 0.35 }} />
+                  <div
+                    className="h-1.5 w-16 rounded-full bg-gradient-to-r from-accent to-accent-dark"
+                    style={{ opacity: 0.3 + i * 0.35 }}
+                  />
                 </div>
-                <div className="mt-8 font-semibold text-lg text-gray-900">{s.title}</div>
-                <div className="mt-2 text-sm text-gray-600 leading-relaxed">{s.body}</div>
-                <div className="mt-6 text-xs text-gray-500">{s.time}</div>
+                <div className="mt-8 font-semibold text-lg text-gray-900">
+                  {s.title}
+                </div>
+                <div className="mt-2 text-sm text-gray-600 leading-relaxed">
+                  {s.body}
+                </div>
+                <div className="mt-6 text-xs text-accent-dark font-medium">
+                  {s.time}
+                </div>
               </div>
             ))}
           </div>
@@ -285,24 +287,25 @@ export default async function LandingPage() {
       {/* ================================ CTA ================================= */}
       <section className="border-t border-gray-200">
         <div className="max-w-6xl mx-auto px-6 py-24 sm:py-32">
-          <div className="relative rounded-3xl bg-gray-900 text-white p-10 sm:p-14 overflow-hidden">
+          <div className="relative rounded-3xl bg-gradient-to-br from-accent-light via-white to-accent-light border border-accent/30 p-10 sm:p-14 overflow-hidden shadow-card">
             <div
               aria-hidden
-              className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/40 blur-3xl"
+              className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/20 blur-3xl"
             />
             <div
               aria-hidden
-              className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-accent-dark/50 blur-3xl"
+              className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-accent-dark/15 blur-3xl"
             />
             <div className="relative grid lg:grid-cols-[1.3fr_0.7fr] gap-8 items-center">
               <div>
-                <div className="text-[11px] uppercase tracking-[0.16em] text-white/60 font-semibold">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-accent-dark font-semibold">
                   Prêt à trancher ?
                 </div>
-                <h2 className="mt-3 text-3xl sm:text-5xl font-semibold tracking-tight leading-[1.05]">
-                  5 minutes. Une décision claire.
+                <h2 className="mt-3 text-3xl sm:text-5xl font-semibold tracking-tight leading-[1.05] text-gray-900">
+                  5 minutes.{" "}
+                  <span className="text-accent">Une décision claire.</span>
                 </h2>
-                <p className="mt-5 text-white/70 max-w-lg leading-relaxed">
+                <p className="mt-5 text-gray-700 max-w-lg leading-relaxed">
                   Tu écris, Oni écoute. Il te renvoie un diagnostic complet et
                   une action précise à lancer aujourd&apos;hui. Sans engagement,
                   sans compte à créer.
@@ -311,10 +314,19 @@ export default async function LandingPage() {
               <div className="flex lg:justify-end">
                 <Link
                   href="/chat"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-pill bg-white text-gray-900 font-semibold text-[15px] hover:bg-white/95 shadow-lg transition-transform hover:scale-[1.02]"
+                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-pill bg-accent text-white font-semibold text-[15px] hover:bg-accent-dark shadow-lg transition-transform hover:scale-[1.02]"
                 >
                   Ouvrir le chat
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M5 12h14M13 5l7 7-7 7" />
                   </svg>
                 </Link>
@@ -332,9 +344,7 @@ const FEATURES = [
     title: "Vraie conversation",
     body: "5 à 8 questions ciblées avec Oni. Voix ou texte. Pas un formulaire déguisé en chat.",
     icon: (
-      <>
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     ),
   },
   {
@@ -418,7 +428,7 @@ const TESTIMONIALS = [
     name: "Karim B.",
     role: "Freelance dev",
     initials: "KB",
-    color: "linear-gradient(135deg,#111827,#374151)",
+    color: "linear-gradient(135deg,#5f7dff,#0022ff)",
     hook: "Pas un chatbot de plus.",
     quote:
       "Le diagnostic m'a dit ce que mes proches n'osaient pas. Direct, précis, actionnable.",
