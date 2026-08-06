@@ -42,27 +42,83 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Oni orb — the visual identity of the agent */
+/* Oni orb — véritable sphère 3D avec highlight, ombre projetée, glow, rim light */
 .oni-orb {
+  position: relative;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #5f7dff, #1e3aff, #0022ff);
-  box-shadow: 0 0 60px rgba(0, 34, 255, 0.3);
-  animation: oni-pulse 3s ease-in-out infinite;
+  background:
+    radial-gradient(
+      circle at 32% 28%,
+      #ffffff 0%,
+      #c9d3ff 6%,
+      #6b83ff 22%,
+      #2a45ff 46%,
+      #0018cc 72%,
+      #000a4d 100%
+    );
+  box-shadow:
+    inset -8% -14% 24% 0 rgba(0, 0, 40, 0.55),
+    inset 6% 8% 18% 0 rgba(255, 255, 255, 0.15),
+    0 30px 60px -20px rgba(0, 18, 128, 0.55),
+    0 0 80px rgba(0, 34, 255, 0.35);
+  animation: oni-float 6s ease-in-out infinite;
+  isolation: isolate;
+}
+
+/* Reflet spéculaire en haut à gauche — donne le côté "verre" */
+.oni-orb::before {
+  content: "";
+  position: absolute;
+  inset: 6% 40% 55% 10%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.35) 40%,
+    transparent 70%
+  );
+  filter: blur(2px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Rim light bleu électrique en bas à droite */
+.oni-orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 78% 82%,
+    rgba(120, 170, 255, 0.5) 0%,
+    transparent 30%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .oni-orb.speaking {
-  animation: oni-speak 1s ease-in-out infinite;
+  animation: oni-speak 1.4s ease-in-out infinite;
 }
 
-@keyframes oni-pulse {
+@keyframes oni-float {
   0%,
   100% {
-    transform: scale(1);
-    box-shadow: 0 0 60px rgba(0, 34, 255, 0.3);
+    transform: translateY(0) scale(1);
+    box-shadow:
+      inset -8% -14% 24% 0 rgba(0, 0, 40, 0.55),
+      inset 6% 8% 18% 0 rgba(255, 255, 255, 0.15),
+      0 30px 60px -20px rgba(0, 18, 128, 0.55),
+      0 0 80px rgba(0, 34, 255, 0.35);
   }
   50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 80px rgba(0, 34, 255, 0.4);
+    transform: translateY(-6px) scale(1.02);
+    box-shadow:
+      inset -8% -14% 24% 0 rgba(0, 0, 40, 0.55),
+      inset 6% 8% 18% 0 rgba(255, 255, 255, 0.2),
+      0 40px 70px -20px rgba(0, 18, 128, 0.6),
+      0 0 110px rgba(0, 34, 255, 0.5);
   }
 }
 
@@ -70,9 +126,48 @@ body {
   0%,
   100% {
     transform: scale(1);
+    box-shadow:
+      inset -8% -14% 24% 0 rgba(0, 0, 40, 0.55),
+      inset 6% 8% 18% 0 rgba(255, 255, 255, 0.15),
+      0 30px 60px -20px rgba(0, 18, 128, 0.55),
+      0 0 80px rgba(0, 34, 255, 0.35);
   }
   50% {
     transform: scale(1.08);
+    box-shadow:
+      inset -8% -14% 24% 0 rgba(0, 0, 40, 0.55),
+      inset 6% 8% 18% 0 rgba(255, 255, 255, 0.25),
+      0 40px 80px -18px rgba(0, 18, 128, 0.7),
+      0 0 130px rgba(0, 34, 255, 0.6);
+  }
+}
+
+/* Halo ambiant derrière l'orbe sur la welcome */
+.oni-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(95, 125, 255, 0.35) 0%,
+    rgba(0, 34, 255, 0.15) 30%,
+    transparent 70%
+  );
+  filter: blur(30px);
+  animation: oni-halo 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes oni-halo {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
   }
 }
 
@@ -124,4 +219,84 @@ body {
 .shadow-card {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
     0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+/* Input principal — verre 3D avec profondeur, highlight, ombre douce */
+.chat-input-3d {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f7fb 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.03) inset,
+    0 2px 6px rgba(15, 23, 42, 0.04),
+    0 20px 40px -12px rgba(15, 23, 42, 0.08);
+  transition:
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.15s ease;
+}
+.chat-input-3d:focus-within {
+  border-color: rgba(0, 34, 255, 0.4);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.03) inset,
+    0 0 0 4px rgba(0, 34, 255, 0.08),
+    0 25px 50px -12px rgba(0, 34, 255, 0.18);
+}
+
+/* Chips de suggestion — style carte 3D souple */
+.chip-3d {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f4fa 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.02) inset,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 6px 14px -6px rgba(15, 23, 42, 0.08);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.chip-3d:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 34, 255, 0.3);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.02) inset,
+    0 4px 10px rgba(15, 23, 42, 0.06),
+    0 14px 28px -10px rgba(0, 34, 255, 0.18);
+}
+.chip-3d:active {
+  transform: translateY(0);
+}
+
+/* Bouton d'envoi principal — sphère bleue avec profondeur */
+.send-btn-3d {
+  background: radial-gradient(circle at 30% 25%, #4d67ff 0%, #0022ff 60%, #0018cc 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 40, 0.4),
+    0 4px 10px -2px rgba(0, 34, 255, 0.5),
+    0 8px 20px -6px rgba(0, 34, 255, 0.4);
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+.send-btn-3d:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 40, 0.4),
+    0 6px 14px -2px rgba(0, 34, 255, 0.55),
+    0 12px 28px -8px rgba(0, 34, 255, 0.5);
+}
+.send-btn-3d:active:not(:disabled) {
+  transform: translateY(0);
+}
+.send-btn-3d:disabled {
+  background: linear-gradient(180deg, #e5e7ec 0%, #d5d8e0 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }

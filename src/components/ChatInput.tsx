@@ -17,6 +17,8 @@ interface Props {
   /** Contrôle le champ depuis l'extérieur (pour injecter le transcript vocal). */
   value?: string;
   onValueChange?: (v: string) => void;
+  /** Look proéminent pour la page welcome (input central 3D). */
+  hero?: boolean;
 }
 
 export function ChatInput({
@@ -26,6 +28,7 @@ export function ChatInput({
   voice,
   value: valueProp,
   onValueChange,
+  hero = false,
 }: Props) {
   const [internal, setInternal] = useState("");
   const controlled = valueProp !== undefined;
@@ -40,8 +43,8 @@ export function ChatInput({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 160) + "px";
-  }, [value]);
+    el.style.height = Math.min(el.scrollHeight, hero ? 200 : 160) + "px";
+  }, [value, hero]);
 
   const submit = () => {
     const trimmed = value.trim();
@@ -62,8 +65,70 @@ export function ChatInput({
       ? (value ? value + " " : "") + voice.liveTranscript
       : value;
 
+  if (hero) {
+    return (
+      <div className="chat-input-3d p-3 sm:p-4">
+        <textarea
+          ref={textareaRef}
+          value={displayValue}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={voice?.isListening ? "Je t'écoute…" : placeholder}
+          disabled={disabled || voice?.isListening}
+          rows={1}
+          className="w-full resize-none bg-transparent px-2 py-1.5 text-[15px] sm:text-base text-gray-900 placeholder:text-gray-400 focus:outline-none max-h-52 leading-relaxed"
+        />
+        <div className="mt-2 flex items-end justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-gray-400">
+            {voice && (
+              <button
+                type="button"
+                onClick={voice.onToggle}
+                disabled={disabled}
+                className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors ${
+                  voice.isListening
+                    ? "bg-red-500 text-white animate-pulse"
+                    : "bg-surface-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+                aria-label={voice.isListening ? "Arrêter le micro" : "Activer le micro"}
+              >
+                {voice.isListening ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="1.5" />
+                  </svg>
+                ) : (
+                  <MicIcon />
+                )}
+              </button>
+            )}
+          </div>
+          <button
+            onClick={submit}
+            disabled={disabled || !value.trim()}
+            className="send-btn-3d shrink-0 h-11 w-11 rounded-full text-white flex items-center justify-center disabled:cursor-not-allowed"
+            aria-label="Envoyer"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 19V5" />
+              <path d="m5 12 7-7 7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-end gap-2 bg-surface-1 border border-gray-200 rounded-card shadow-card p-2">
+    <div className="chat-input-3d flex items-end gap-2 p-2">
       <textarea
         ref={textareaRef}
         value={displayValue}
@@ -79,7 +144,7 @@ export function ChatInput({
           type="button"
           onClick={voice.onToggle}
           disabled={disabled}
-          className={`shrink-0 h-10 w-10 rounded-card flex items-center justify-center transition-colors ${
+          className={`shrink-0 h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
             voice.isListening
               ? "bg-red-500 text-white animate-pulse"
               : "bg-surface-2 text-gray-600 hover:bg-gray-200"
@@ -91,18 +156,14 @@ export function ChatInput({
               <rect x="6" y="6" width="12" height="12" rx="1.5" />
             </svg>
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" x2="12" y1="19" y2="22" />
-            </svg>
+            <MicIcon />
           )}
         </button>
       )}
       <button
         onClick={submit}
         disabled={disabled || !value.trim()}
-        className="shrink-0 h-10 w-10 rounded-card bg-accent hover:bg-accent-dark disabled:bg-gray-200 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors"
+        className="send-btn-3d shrink-0 h-10 w-10 rounded-full text-white flex items-center justify-center disabled:cursor-not-allowed"
         aria-label="Envoyer"
       >
         <svg
@@ -120,5 +181,24 @@ export function ChatInput({
         </svg>
       </button>
     </div>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" x2="12" y1="19" y2="22" />
+    </svg>
   );
 }

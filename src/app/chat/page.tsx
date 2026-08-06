@@ -175,38 +175,47 @@ export default function ChatPage() {
   return (
     <div className="relative min-h-screen bg-surface overflow-hidden">
       {!started && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            background:
-              "radial-gradient(50% 35% at 50% 0%, rgba(0,34,255,0.08), transparent 70%)",
-          }}
-        />
+        <>
+          {/* Halo doux en haut, plus large et plus profond */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-[640px] -z-10"
+            style={{
+              background:
+                "radial-gradient(60% 55% at 50% 8%, rgba(0,34,255,0.14), rgba(0,34,255,0.04) 45%, transparent 75%)",
+            }}
+          />
+          {/* Grain subtil pour donner de la matière */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035]"
+            style={{
+              backgroundImage:
+                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+            }}
+          />
+        </>
       )}
       <div className={`${started ? "max-w-6xl" : "max-w-3xl"} mx-auto px-4 py-6 sm:py-10`}>
         {!started ? (
-          <div className="flex flex-col items-center gap-10 pt-6">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-surface-1 border border-gray-200 text-xs font-medium text-gray-600 shadow-card">
-              <span className="h-1.5 w-1.5 rounded-full bg-status-solid" />
-              Session privée · sans compte
-            </span>
-
+          <div className="flex flex-col items-center gap-8 pt-6 sm:pt-10">
             <div className="flex flex-col items-center text-center">
-              <OniAvatar size={112} />
-              <h1 className="mt-8 text-4xl sm:text-5xl font-semibold text-gray-900 tracking-tight leading-[1.1]">
-                Bienvenue.
+              <OniAvatar size={132} halo />
+              <h1 className="mt-10 text-[34px] sm:text-[46px] font-semibold text-gray-900 tracking-tight leading-[1.05]">
+                Comment puis-je
                 <br />
-                <span className="text-accent">On analyse ta situation.</span>
+                <span className="bg-gradient-to-r from-accent to-accent-dark bg-clip-text text-transparent">
+                  t&apos;aider aujourd&apos;hui ?
+                </span>
               </h1>
-              <p className="mt-5 text-gray-600 max-w-md mx-auto leading-relaxed">
-                Session guidée avec Oni. Cinq à huit questions ciblées,
-                puis un diagnostic et une action précise à exécuter dans
-                la journée.
+              <p className="mt-4 text-[15px] sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed">
+                Je suis Oni. Décris ce qui te préoccupe — je pose des
+                questions ciblées, puis je te livre un diagnostic et une
+                action précise à exécuter aujourd&apos;hui.
               </p>
 
-              {/* Toggle de ton — pas un avatar, juste un choix de voix. */}
-              <div className="mt-6 inline-flex items-center gap-1 rounded-pill border border-gray-200 bg-surface-1 p-0.5 text-xs shadow-card">
+              {/* Toggle de ton — plus discret */}
+              <div className="mt-6 inline-flex items-center gap-1 rounded-pill border border-gray-200 bg-white/80 backdrop-blur p-0.5 text-xs shadow-card">
                 <span className="pl-3 pr-1 text-gray-500">Oni parle au</span>
                 {(["il", "elle"] as const).map((g) => (
                   <button
@@ -226,7 +235,7 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Input central + mode inline */}
+            {/* Input central — hero 3D */}
             <div className="w-full max-w-2xl">
               {mode === "voice" ? (
                 <VoiceStage
@@ -236,6 +245,7 @@ export default function ChatPage() {
                 />
               ) : (
                 <ChatInput
+                  hero
                   onSend={(msg) => {
                     sendMessage(msg);
                     voice.resetTranscript();
@@ -281,10 +291,10 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Suggestions chips */}
+            {/* Suggestions chips 3D */}
             <div className="w-full">
-              <div className="text-center text-xs uppercase tracking-[0.16em] text-gray-500 font-semibold mb-3">
-                Ou clique ce qui te ressemble
+              <div className="text-center text-[11px] uppercase tracking-[0.18em] text-gray-400 font-semibold mb-4">
+                Ou choisis un point de départ
               </div>
               <SituationCards onSelect={sendMessage} />
             </div>

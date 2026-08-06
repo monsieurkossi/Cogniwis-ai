@@ -68,29 +68,36 @@ interface Props {
 export function SituationCards({ onSelect, variant = "chips" }: Props) {
   if (variant === "chips") {
     return (
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
         {SITUATIONS.map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => onSelect(s.prompt)}
-            className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-pill bg-surface-1 border border-gray-200 hover:border-accent hover:bg-accent-light/40 shadow-card transition-all text-sm text-gray-700 hover:text-accent-dark"
+            className="chip-3d group text-left px-3.5 py-3 sm:px-4 sm:py-3.5"
           >
-            <span className="h-6 w-6 rounded-full bg-accent-light text-accent-dark flex items-center justify-center">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {s.icon}
-              </svg>
-            </span>
-            <span className="font-medium">{s.title}</span>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="h-6 w-6 shrink-0 rounded-full bg-accent-light text-accent-dark flex items-center justify-center">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {s.icon}
+                </svg>
+              </span>
+              <span className="font-semibold text-[13px] sm:text-sm text-gray-900 group-hover:text-accent-dark leading-tight">
+                {s.title}
+              </span>
+            </div>
+            <div className="text-[11px] sm:text-xs text-gray-500 leading-snug line-clamp-2">
+              {s.subtitle}
+            </div>
           </button>
         ))}
       </div>
@@ -104,7 +111,7 @@ export function SituationCards({ onSelect, variant = "chips" }: Props) {
           key={s.id}
           type="button"
           onClick={() => onSelect(s.prompt)}
-          className="group text-left p-4 bg-surface-1 border border-gray-200 rounded-card hover:border-accent hover:shadow-card transition-all"
+          className="chip-3d group text-left p-4"
         >
           <div className="flex items-start gap-3">
             <span className="h-9 w-9 shrink-0 rounded-xl bg-accent-light text-accent-dark flex items-center justify-center">
