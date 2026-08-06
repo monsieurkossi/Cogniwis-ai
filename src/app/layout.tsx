@@ -11,9 +11,19 @@ const redHat = Red_Hat_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://cogniwis.ai"),
   title: "Cogniwis — Ton OS de décision stratégique",
   description:
     "Cogniwis, le Strategic Decision OS pour indépendants. Diagnostic, action, suivi — avec Oni, ton conseiller.",
+  openGraph: {
+    title: "Cogniwis — Ton OS de décision stratégique",
+    description:
+      "Une conversation avec Oni, un diagnostic honnête, une action à lancer aujourd'hui.",
+    url: "https://cogniwis.ai",
+    siteName: "Cogniwis",
+    locale: "fr_FR",
+    type: "website",
+  },
 };
 
 export default async function RootLayout({
