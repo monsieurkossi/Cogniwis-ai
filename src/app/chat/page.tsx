@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { OniAvatar } from "@/components/OniAvatar";
 import { OniMessage } from "@/components/OniMessage";
 import { UserMessage } from "@/components/UserMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { SituationCards } from "@/components/SituationCards";
 import { RecapCard } from "@/components/RecapCard";
-import { PersonaAvatar } from "@/components/PersonaAvatar";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { ChatMessage, InteractionMode, OniGender } from "@/lib/types";
 
@@ -185,8 +185,9 @@ export default function ChatPage() {
               Session privée · sans compte
             </span>
 
-            <div className="text-center">
-              <h1 className="text-4xl sm:text-5xl font-semibold text-gray-900 tracking-tight leading-[1.1]">
+            <div className="flex flex-col items-center text-center">
+              <OniAvatar size={112} />
+              <h1 className="mt-8 text-4xl sm:text-5xl font-semibold text-gray-900 tracking-tight leading-[1.1]">
                 Salut.
                 <br />
                 <span className="text-gray-400">On fait le point ?</span>
@@ -195,44 +196,25 @@ export default function ChatPage() {
                 Je suis Oni. En 5 minutes, on éclaircit ce qui coince et
                 j&apos;isole une seule action utile à lancer aujourd&apos;hui.
               </p>
-            </div>
 
-            {/* Persona picker */}
-            <div>
-              <div className="text-center text-xs uppercase tracking-[0.16em] text-gray-500 font-semibold mb-3">
-                Choisis ton Oni
-              </div>
-              <div className="flex items-center justify-center gap-3">
-                {(["il", "elle"] as const).map((g) => {
-                  const selected = gender === g;
-                  return (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setGender(g)}
-                      className={`group flex items-center gap-3 pl-2 pr-5 py-2 rounded-pill border transition-all ${
-                        selected
-                          ? "bg-accent-light border-accent shadow-card"
-                          : "bg-surface-1 border-gray-200 hover:border-gray-300"
-                      }`}
-                      aria-pressed={selected}
-                    >
-                      <PersonaAvatar gender={g} size={44} />
-                      <div className="text-left">
-                        <div
-                          className={`text-sm font-semibold ${
-                            selected ? "text-accent-dark" : "text-gray-900"
-                          }`}
-                        >
-                          {g === "il" ? "Il" : "Elle"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {g === "il" ? "Ton direct" : "Ton empathique"}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+              {/* Toggle de ton — pas un avatar, juste un choix de voix. */}
+              <div className="mt-6 inline-flex items-center gap-1 rounded-pill border border-gray-200 bg-surface-1 p-0.5 text-xs shadow-card">
+                <span className="pl-3 pr-1 text-gray-500">Oni parle au</span>
+                {(["il", "elle"] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    className={`px-3 py-1 rounded-pill font-medium transition-colors ${
+                      gender === g
+                        ? "bg-gray-900 text-white shadow-card"
+                        : "text-gray-600 hover:bg-surface-2"
+                    }`}
+                    aria-pressed={gender === g}
+                  >
+                    {g === "il" ? "masculin" : "féminin"}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -344,7 +326,7 @@ export default function ChatPage() {
             <div className="flex items-center justify-between gap-3 pb-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <PersonaAvatar gender={gender} size={44} />
+                  <OniAvatar size={40} speaking={streaming} />
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface ${
                       streaming ? "bg-accent animate-pulse" : "bg-status-solid"
@@ -356,7 +338,7 @@ export default function ChatPage() {
                     Oni
                   </div>
                   <div className="text-xs text-gray-500">
-                    {streaming ? "Écrit…" : "En ligne · Cogniwis"}
+                    {streaming ? "Écrit…" : `En ligne · ton ${gender === "il" ? "masculin" : "féminin"}`}
                   </div>
                 </div>
               </div>
