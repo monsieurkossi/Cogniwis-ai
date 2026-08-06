@@ -341,33 +341,34 @@ export default function ChatPage() {
             </details>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-[1fr_280px] gap-6 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5rem)]">
-            <div className="flex flex-col min-w-0 bg-surface-1 border border-gray-200 rounded-2xl shadow-card overflow-hidden">
-              {/* Header conversation */}
-              <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100 bg-surface-1">
+          <div className="grid lg:grid-cols-[1fr_300px] gap-8 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5rem)]">
+            {/* Colonne conversation — plate, sans carte, façon ChatGPT/Claude */}
+            <div className="flex flex-col min-w-0 relative">
+              {/* Header compact */}
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-200/60">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <OniAvatar size={36} speaking={streaming} />
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface-1 ${
-                        streaming ? "bg-accent animate-pulse" : "bg-status-solid"
-                      }`}
-                    />
-                  </div>
+                  <OniAvatar size={34} speaking={streaming} />
                   <div>
-                    <div className="font-semibold text-gray-900 leading-tight">
-                      Oni · session en cours
+                    <div className="font-semibold text-gray-900 leading-tight text-[15px]">
+                      Oni
                     </div>
-                    <div className="text-[11px] text-gray-500 flex items-center gap-2">
+                    <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          streaming
+                            ? "bg-accent animate-pulse"
+                            : recap
+                              ? "bg-status-fragile"
+                              : "bg-status-solid"
+                        }`}
+                      />
                       <span>
                         {streaming
-                          ? "Analyse en cours…"
+                          ? "réfléchit…"
                           : recap
-                            ? "Récap prêt à valider"
-                            : `${assistantTurns} question${assistantTurns > 1 ? "s" : ""} posée${assistantTurns > 1 ? "s" : ""}`}
+                            ? "récap à valider"
+                            : "en ligne"}
                       </span>
-                      <span className="h-1 w-1 rounded-full bg-gray-300" />
-                      <span>ton {gender === "il" ? "masculin" : "féminin"}</span>
                     </div>
                   </div>
                 </div>
@@ -379,10 +380,10 @@ export default function ChatPage() {
                 />
               </div>
 
-              {/* Stream messages */}
+              {/* Fil de messages */}
               <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto px-5 py-6 space-y-6"
+                className="flex-1 overflow-y-auto py-6 space-y-6 pr-1"
               >
                 <OniMessage content={intro} />
                 {messages.map((m, idx) =>
@@ -410,53 +411,62 @@ export default function ChatPage() {
                 )}
               </div>
 
-              <div className="px-5 pt-3 pb-4 border-t border-gray-100 bg-surface-1">
-              {mode === "voice" && !recap ? (
-                <VoiceStage
-                  streaming={streaming || savingRecap}
-                  voice={voice}
-                  onSend={sendMessage}
+              {/* Input — collé en bas, sur fond surface, avec fade-out au-dessus */}
+              <div className="relative pt-2">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -top-8 inset-x-0 h-8 bg-gradient-to-b from-transparent to-[color:var(--color-surface)]"
                 />
-              ) : (
-                <ChatInput
-                  onSend={(msg) => {
-                    sendMessage(msg);
-                    voice.resetTranscript();
-                  }}
-                  disabled={streaming || savingRecap || !!recap}
-                  placeholder={
-                    recap
-                      ? "Valide ou corrige le récap ci-dessus pour continuer…"
-                      : undefined
-                  }
-                  value={
-                    mode === "mixed"
-                      ? voice.transcript || inputValue
-                      : inputValue
-                  }
-                  onValueChange={(v) => {
-                    setInputValue(v);
-                    if (mode === "mixed") voice.resetTranscript();
-                  }}
-                  voice={
-                    mode === "mixed" && voice.isSupported && !recap
-                      ? {
-                          isListening: voice.isListening,
-                          liveTranscript: voice.interim,
-                          onToggle: () =>
-                            voice.isListening
-                              ? voice.stopListening()
-                              : voice.startListening(),
-                        }
-                      : undefined
-                  }
-                />
-              )}
+                {mode === "voice" && !recap ? (
+                  <VoiceStage
+                    streaming={streaming || savingRecap}
+                    voice={voice}
+                    onSend={sendMessage}
+                  />
+                ) : (
+                  <ChatInput
+                    hero
+                    onSend={(msg) => {
+                      sendMessage(msg);
+                      voice.resetTranscript();
+                    }}
+                    disabled={streaming || savingRecap || !!recap}
+                    placeholder={
+                      recap
+                        ? "Valide ou corrige le récap ci-dessus pour continuer…"
+                        : "Écris ta réponse à Oni…"
+                    }
+                    value={
+                      mode === "mixed"
+                        ? voice.transcript || inputValue
+                        : inputValue
+                    }
+                    onValueChange={(v) => {
+                      setInputValue(v);
+                      if (mode === "mixed") voice.resetTranscript();
+                    }}
+                    voice={
+                      mode === "mixed" && voice.isSupported && !recap
+                        ? {
+                            isListening: voice.isListening,
+                            liveTranscript: voice.interim,
+                            onToggle: () =>
+                              voice.isListening
+                                ? voice.stopListening()
+                                : voice.startListening(),
+                          }
+                        : undefined
+                    }
+                  />
+                )}
+                <p className="mt-2 text-center text-[11px] text-gray-400">
+                  Oni peut se tromper. Vérifie ce qui compte avant d&apos;agir.
+                </p>
               </div>
             </div>
 
             {/* Side context panel (desktop only) */}
-            <aside className="hidden lg:flex flex-col gap-4 h-full">
+            <aside className="hidden lg:flex flex-col gap-4 h-full overflow-y-auto pr-1">
               <SessionPanel
                 assistantTurns={assistantTurns}
                 userTurns={userTurns}
