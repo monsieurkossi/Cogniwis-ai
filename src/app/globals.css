@@ -34,6 +34,60 @@
   --foreground: #111827;
 }
 
+/* ============ DARK MODE ============
+   Activé via <html data-theme="dark"> (init dans layout.tsx pour éviter le FOUC).
+   On surcharge les variables Tailwind + quelques classes hardcodées (bg-white,
+   text-gray-*, border-gray-*) pour que l'app entière bascule sans toucher chaque
+   composant. */
+:root[data-theme="dark"] {
+  --background: #0b0d12;
+  --foreground: #e7e9ee;
+
+  --color-surface: #0b0d12;
+  --color-surface-1: #14171e;
+  --color-surface-2: #1b1f28;
+  --color-surface-3: #252a35;
+
+  --color-accent: #5f7dff;
+  --color-accent-light: #1a2140;
+  --color-accent-dark: #8aa1ff;
+}
+
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-white\/50,
+[data-theme="dark"] .bg-white\/80,
+[data-theme="dark"] .bg-white\/90 {
+  background-color: #14171e !important;
+}
+[data-theme="dark"] .bg-gray-900,
+[data-theme="dark"] .bg-black {
+  background-color: #f5f5f7 !important;
+  color: #0b0d12 !important;
+}
+[data-theme="dark"] .text-gray-900 { color: #f2f4f8 !important; }
+[data-theme="dark"] .text-gray-800 { color: #e6e8ee !important; }
+[data-theme="dark"] .text-gray-700 { color: #ccd1db !important; }
+[data-theme="dark"] .text-gray-600 { color: #a8afbc !important; }
+[data-theme="dark"] .text-gray-500 { color: #8b93a1 !important; }
+[data-theme="dark"] .text-gray-400 { color: #6e7684 !important; }
+[data-theme="dark"] .border-gray-200 { border-color: #252a35 !important; }
+[data-theme="dark"] .border-gray-300 { border-color: #313745 !important; }
+
+/* Bubbles + inputs — regagne du contraste sur fond sombre */
+[data-theme="dark"] .glass-input,
+[data-theme="dark"] .chat-input-3d,
+[data-theme="dark"] .chip-3d,
+[data-theme="dark"] .chip-glass,
+[data-theme="dark"] .bubble-user {
+  background: linear-gradient(180deg, #1b1f28 0%, #14171e 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e7e9ee;
+}
+[data-theme="dark"] .send-onyx:disabled {
+  background: #252a35;
+  color: #4a5060;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -53,12 +107,19 @@ body {
   letter-spacing: -0.025em;
 }
 
-/* Hero editorial — Instrument Serif, ton conseiller littéraire */
+/* Hero editorial — Fraunces (variable), ton conseiller littéraire */
 .font-serif {
-  font-family: var(--font-serif), "Instrument Serif", "Iowan Old Style",
-    "Charter", Georgia, "Times New Roman", serif;
-  letter-spacing: -0.02em;
-  font-feature-settings: "kern", "liga", "clig", "calt";
+  font-family: var(--font-serif), "Fraunces", "Iowan Old Style", "Charter",
+    Georgia, "Times New Roman", serif;
+  letter-spacing: -0.025em;
+  font-feature-settings: "kern", "liga", "clig", "calt", "ss01";
+  font-variation-settings: "opsz" 96, "SOFT" 30, "WONK" 0;
+}
+.font-serif em,
+.font-serif i,
+.font-serif .italic {
+  font-style: italic;
+  font-variation-settings: "opsz" 96, "SOFT" 100, "WONK" 1;
 }
 
 /* Fond ambiant premium — très subtil, lumière de studio en haut */

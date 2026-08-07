@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Red_Hat_Display, Instrument_Serif } from "next/font/google";
+import { Red_Hat_Display, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { createClient } from "@/lib/supabase/server";
@@ -11,12 +11,12 @@ const redHat = Red_Hat_Display({
   weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
-const instrumentSerif = Instrument_Serif({
+const fraunces = Fraunces({
   variable: "--font-serif",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400"],
   style: ["normal", "italic"],
+  axes: ["SOFT", "WONK", "opsz"],
 });
 
 export const metadata: Metadata = {
@@ -46,8 +46,16 @@ export default async function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${redHat.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${redHat.variable} ${fraunces.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('cogniwis-theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans">
         <Navbar userEmail={user?.email ?? null} />
         <main className="flex-1">{children}</main>

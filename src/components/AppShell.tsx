@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CogniwisLogo } from "./CogniwisLogo";
 
 interface Props {
@@ -66,7 +66,24 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setThemeState] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const stored = (typeof window !== "undefined"
+      ? (localStorage.getItem("cogniwis-theme") as "light" | "dark" | null)
+      : null) || "light";
+    setThemeState(stored);
+  }, []);
+
+  const setTheme = (t: "light" | "dark") => {
+    setThemeState(t);
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", t);
+      try {
+        localStorage.setItem("cogniwis-theme", t);
+      } catch {}
+    }
+  };
 
   return (
     <div className="min-h-screen bg-surface flex">
