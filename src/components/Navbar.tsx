@@ -14,6 +14,13 @@ export function Navbar({ userEmail }: Props) {
   const router = useRouter();
   const supabase = createClient();
 
+  // Sur les pages "app" (chat / diagnostic / action) on a un shell dédié
+  // avec sidebar — la topbar globale ferait doublon.
+  const APP_PATHS = ["/chat", "/diagnostic", "/action"];
+  if (APP_PATHS.some((p) => pathname.startsWith(p))) {
+    return null;
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut();
     router.push("/");

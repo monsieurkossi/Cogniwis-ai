@@ -8,6 +8,8 @@ import { UserMessage } from "@/components/UserMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { SituationCards } from "@/components/SituationCards";
 import { RecapCard } from "@/components/RecapCard";
+import { AppShell } from "@/components/AppShell";
+import { createClient } from "@/lib/supabase/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { ChatMessage, InteractionMode, OniGender } from "@/lib/types";
 
@@ -44,6 +46,21 @@ export default function ChatPage() {
 
   const [gender, setGender] = useState<OniGender>("il");
   const [mode, setMode] = useState<InteractionMode>("text");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+  }, []);
+
+  const signOut = useCallback(async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  }, [router]);
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -172,8 +189,20 @@ export default function ChatPage() {
     }, 50);
   };
 
+  const rightPanel = started ? (
+    <SessionPanel
+      assistantTurns={assistantTurns}
+      userTurns={userTurns}
+      phase={recap ? "recap" : "collect"}
+      startedAt={startedAt.current}
+    />
+  ) : (
+    <WelcomeSidePanel />
+  );
+
   return (
-    <div className="relative min-h-screen bg-surface overflow-hidden">
+    <AppShell userEmail={userEmail} onSignOut={signOut} right={rightPanel}>
+    <div className="relative min-h-full bg-surface overflow-hidden">
       {!started && (
         <>
           {/* Halo doux en haut, plus large et plus profond */}
@@ -196,7 +225,7 @@ export default function ChatPage() {
           />
         </>
       )}
-      <div className={`${started ? "max-w-6xl" : "max-w-3xl"} mx-auto px-4 py-6 sm:py-10`}>
+      <div className={`${started ? "max-w-4xl" : "max-w-3xl"} mx-auto px-4 py-6 sm:py-10`}>
         {!started ? (
           <div className="flex flex-col items-center gap-8 pt-6 sm:pt-10">
             <div className="flex flex-col items-center text-center">
@@ -341,9 +370,9 @@ export default function ChatPage() {
             </details>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-[1fr_300px] gap-8 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5rem)]">
+          <div className="h-[calc(100vh-4rem)]">
             {/* Colonne conversation — plate, sans carte, façon ChatGPT/Claude */}
-            <div className="flex flex-col min-w-0 relative">
+            <div className="flex flex-col h-full min-w-0 relative">
               {/* Header compact */}
               <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-200/60">
                 <div className="flex items-center gap-3">
@@ -464,18 +493,67 @@ export default function ChatPage() {
                 </p>
               </div>
             </div>
-
-            {/* Side context panel (desktop only) */}
-            <aside className="hidden lg:flex flex-col gap-4 h-full overflow-y-auto pr-1">
-              <SessionPanel
-                assistantTurns={assistantTurns}
-                userTurns={userTurns}
-                phase={recap ? "recap" : "collect"}
-                startedAt={startedAt.current}
-              />
-            </aside>
           </div>
         )}
+      </div>
+    </div>
+    </AppShell>
+  );
+}
+
+/** Panneau droit affiché sur la welcome — invite au démarrage. */
+function WelcomeSidePanel() {
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-semibold">
+          Ta session
+        </div>
+        <div className="mt-3 rounded-2xl border border-dashed border-gray-300 bg-white/60 p-5 text-center">
+          <div className="mx-auto h-10 w-10 rounded-full bg-accent-light text-accent-dark flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <div className="mt-3 text-sm font-semibold text-gray-900">
+            Aucune session en cours
+          </div>
+          <p className="mt-1 text-[12px] text-gray-500 leading-relaxed">
+            Décris ta situation ou choisis un point de départ pour lancer un
+            diagnostic avec Oni.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">
+          Ce qui va se passer
+        </div>
+        <ol className="space-y-2.5 text-[13px] text-gray-700">
+          {[
+            "Oni pose 5 à 8 questions ciblées",
+            "Il te propose un récap à valider",
+            "Tu reçois un diagnostic sur 7 piliers",
+            "Une seule action est priorisée pour aujourd'hui",
+          ].map((step, i) => (
+            <li key={step} className="flex items-start gap-2.5">
+              <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-surface-2 text-gray-500 text-[10px] font-semibold flex items-center justify-center border border-gray-200">
+                {i + 1}
+              </span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-accent-dark text-white p-4 shadow-card">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-white/60 font-semibold">
+          Bon à savoir
+        </div>
+        <p className="mt-2 text-[12.5px] leading-relaxed text-white/85">
+          La session reste privée sur ton appareil tant que tu ne crées pas
+          de compte. Tu peux partir de rien : Oni s&apos;adapte.
+        </p>
       </div>
     </div>
   );
