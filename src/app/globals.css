@@ -11,9 +11,9 @@
   --color-surface-2: #f0f2f7;
   --color-surface-3: #e8eaf0;
 
-  --color-accent: #0022ff;
+  --color-accent: #0c00ff;
   --color-accent-light: #eef0ff;
-  --color-accent-dark: #0018cc;
+  --color-accent-dark: #0800cc;
 
   --color-status-critical: #ef4444;
   --color-status-critical-bg: #fef2f2;
@@ -31,7 +31,7 @@
 
 :root {
   --background: #f8f9fc;
-  --foreground: #111827;
+  --foreground: #070707;
 }
 
 body {
