@@ -189,312 +189,285 @@ export default function ChatPage() {
     }, 50);
   };
 
-  const rightPanel = started ? (
-    <SessionPanel
-      assistantTurns={assistantTurns}
-      userTurns={userTurns}
-      phase={recap ? "recap" : "collect"}
-      startedAt={startedAt.current}
-    />
-  ) : (
-    <WelcomeSidePanel />
-  );
-
-  return (
-    <AppShell userEmail={userEmail} onSignOut={signOut} right={rightPanel}>
-    <div className="relative min-h-full bg-surface overflow-hidden">
-      {!started && (
-        <>
-          {/* Halo doux en haut, plus large et plus profond */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-[640px] -z-10"
-            style={{
-              background:
-                "radial-gradient(60% 55% at 50% 8%, rgba(0,34,255,0.14), rgba(0,34,255,0.04) 45%, transparent 75%)",
-            }}
-          />
-          {/* Grain subtil pour donner de la matière */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035]"
-            style={{
-              backgroundImage:
-                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
-            }}
-          />
-        </>
-      )}
-      <div className={`${started ? "max-w-4xl" : "max-w-3xl"} mx-auto px-4 py-6 sm:py-10`}>
-        {!started ? (
-          <div className="flex flex-col items-center gap-8 pt-6 sm:pt-10">
-            <div className="flex flex-col items-center text-center">
-              <OniAvatar size={132} halo />
-              <h1 className="mt-10 text-[34px] sm:text-[46px] font-semibold text-gray-900 tracking-tight leading-[1.05]">
-                Comment puis-je
-                <br />
-                <span className="bg-gradient-to-r from-accent to-accent-dark bg-clip-text text-transparent">
-                  t&apos;aider aujourd&apos;hui ?
-                </span>
-              </h1>
-              <p className="mt-4 text-[15px] sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed">
-                Je suis Oni. Décris ce qui te préoccupe — je pose des
-                questions ciblées, puis je te livre un diagnostic et une
-                action précise à exécuter aujourd&apos;hui.
-              </p>
-
-              {/* Toggle de ton — plus discret */}
-              <div className="mt-6 inline-flex items-center gap-1 rounded-pill border border-gray-200 bg-white/80 backdrop-blur p-0.5 text-xs shadow-card">
-                <span className="pl-3 pr-1 text-gray-500">Oni parle au</span>
-                {(["il", "elle"] as const).map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setGender(g)}
-                    className={`px-3 py-1 rounded-pill font-medium transition-colors ${
-                      gender === g
-                        ? "bg-gray-900 text-white shadow-card"
-                        : "text-gray-600 hover:bg-surface-2"
-                    }`}
-                    aria-pressed={gender === g}
-                  >
-                    {g === "il" ? "masculin" : "féminin"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Input central — hero 3D */}
-            <div className="w-full max-w-2xl">
-              {mode === "voice" ? (
-                <VoiceStage
-                  streaming={streaming}
-                  voice={voice}
-                  onSend={sendMessage}
-                />
-              ) : (
-                <ChatInput
-                  hero
-                  onSend={(msg) => {
-                    sendMessage(msg);
-                    voice.resetTranscript();
-                  }}
-                  disabled={streaming}
-                  placeholder="Dis-moi ce qui te préoccupe…"
-                  value={
-                    mode === "mixed"
-                      ? voice.transcript || inputValue
-                      : inputValue
-                  }
-                  onValueChange={(v) => {
-                    setInputValue(v);
-                    if (mode === "mixed") voice.resetTranscript();
-                  }}
-                  voice={
-                    mode === "mixed" && voice.isSupported
-                      ? {
-                          isListening: voice.isListening,
-                          liveTranscript: voice.interim,
-                          onToggle: () =>
-                            voice.isListening
-                              ? voice.stopListening()
-                              : voice.startListening(),
-                        }
-                      : undefined
-                  }
-                />
-              )}
-
-              {/* Barre d'actions sous l'input : mode + hint */}
-              <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-                <InlineModePills
-                  mode={mode}
-                  onChange={handleModeChange}
-                  voiceSupported={voice.isSupported}
-                />
-                <p className="text-xs text-gray-400">
-                  {mode === "voice"
-                    ? "Clique le micro pour parler, reclique pour envoyer."
-                    : "Entrée pour envoyer · Maj + Entrée pour aller à la ligne"}
-                </p>
-              </div>
-            </div>
-
-            {/* Suggestions chips 3D */}
-            <div className="w-full">
-              <div className="text-center text-[11px] uppercase tracking-[0.18em] text-gray-400 font-semibold mb-4">
-                Ou choisis un point de départ
-              </div>
-              <SituationCards onSelect={sendMessage} />
-            </div>
-
-            {/* Reveal détail : mode selector complet (pour ceux qui veulent voir) */}
-            <details className="w-full max-w-2xl group">
-              <summary className="cursor-pointer text-center text-xs text-gray-500 hover:text-gray-700 select-none list-none">
-                <span className="inline-flex items-center gap-1.5">
-                  <span>Comment ça marche</span>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="transition-transform group-open:rotate-180"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </span>
-              </summary>
-              <div className="mt-4 bg-surface-1 border border-gray-200 rounded-2xl p-5 text-sm text-gray-600 space-y-2 shadow-card">
-                <p>
-                  <span className="font-semibold text-gray-900">
-                    Questions ciblées.
-                  </span>{" "}
-                  Oni creuse jusqu&apos;à comprendre. Pas un formulaire, une
-                  vraie discussion.
-                </p>
-                <p>
-                  <span className="font-semibold text-gray-900">Un récap.</span>{" "}
-                  Tu confirmes ce qu&apos;Oni a compris.
-                </p>
-                <p>
-                  <span className="font-semibold text-gray-900">
-                    Diagnostic + action.
-                  </span>{" "}
-                  Les 7 piliers évalués, une seule chose à lancer aujourd&apos;hui.
-                </p>
-              </div>
-            </details>
-          </div>
-        ) : (
-          <div className="h-[calc(100vh-4rem)]">
-            {/* Colonne conversation — plate, sans carte, façon ChatGPT/Claude */}
-            <div className="flex flex-col h-full min-w-0 relative">
-              {/* Header compact */}
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-200/60">
-                <div className="flex items-center gap-3">
-                  <OniAvatar size={34} speaking={streaming} />
-                  <div>
-                    <div className="font-semibold text-gray-900 leading-tight text-[15px]">
-                      Oni
-                    </div>
-                    <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          streaming
-                            ? "bg-accent animate-pulse"
-                            : recap
-                              ? "bg-status-fragile"
-                              : "bg-status-solid"
-                        }`}
-                      />
-                      <span>
-                        {streaming
-                          ? "réfléchit…"
-                          : recap
-                            ? "récap à valider"
-                            : "en ligne"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <InlineModePills
-                  mode={mode}
-                  onChange={handleModeChange}
-                  voiceSupported={voice.isSupported}
-                  compact
-                />
-              </div>
-
-              {/* Fil de messages */}
-              <div
-                ref={scrollRef}
-                className="flex-1 overflow-y-auto py-6 space-y-6 pr-1"
+  // ============================================================
+  // MODE CONVERSATION — vue focus, PAS de shell/sidebar
+  // ============================================================
+  if (started) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col">
+        <div className="max-w-3xl w-full mx-auto px-4 sm:px-6 flex flex-col flex-1 h-screen">
+          {/* Topbar minimale : retour + Oni + mode */}
+          <div className="flex items-center justify-between gap-3 py-4 border-b border-gray-200/70">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="h-9 w-9 rounded-full border border-gray-200 bg-white hover:bg-surface-2 text-gray-600 flex items-center justify-center transition-colors"
+                aria-label="Retour à l'accueil"
+                title="Retour à l'accueil"
               >
-                <OniMessage content={intro} />
-                {messages.map((m, idx) =>
-                  m.role === "assistant" ? (
-                    <OniMessage key={idx} content={m.content} />
-                  ) : (
-                    <UserMessage key={idx} content={m.content} />
-                  )
-                )}
-                {streaming && (
-                  <OniMessage content={streamBuffer} streaming />
-                )}
-                {recap && !streaming && (
-                  <RecapCard
-                    recap={recap}
-                    onConfirm={confirmRecap}
-                    onEdit={editRecap}
-                    loading={savingRecap}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </button>
+              <OniAvatar size={32} speaking={streaming} />
+              <div className="min-w-0">
+                <div className="font-semibold text-gray-900 text-[14.5px] leading-tight">
+                  Oni
+                </div>
+                <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      streaming
+                        ? "bg-accent animate-pulse"
+                        : recap
+                          ? "bg-status-fragile"
+                          : "bg-status-solid"
+                    }`}
                   />
-                )}
-                {error && (
-                  <div className="text-sm text-status-critical bg-status-critical-bg border border-status-critical/30 rounded-card p-3">
-                    {error}
-                  </div>
-                )}
-              </div>
-
-              {/* Input — collé en bas, sur fond surface, avec fade-out au-dessus */}
-              <div className="relative pt-2">
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -top-8 inset-x-0 h-8 bg-gradient-to-b from-transparent to-[color:var(--color-surface)]"
-                />
-                {mode === "voice" && !recap ? (
-                  <VoiceStage
-                    streaming={streaming || savingRecap}
-                    voice={voice}
-                    onSend={sendMessage}
-                  />
-                ) : (
-                  <ChatInput
-                    hero
-                    onSend={(msg) => {
-                      sendMessage(msg);
-                      voice.resetTranscript();
-                    }}
-                    disabled={streaming || savingRecap || !!recap}
-                    placeholder={
-                      recap
-                        ? "Valide ou corrige le récap ci-dessus pour continuer…"
-                        : "Écris ta réponse à Oni…"
-                    }
-                    value={
-                      mode === "mixed"
-                        ? voice.transcript || inputValue
-                        : inputValue
-                    }
-                    onValueChange={(v) => {
-                      setInputValue(v);
-                      if (mode === "mixed") voice.resetTranscript();
-                    }}
-                    voice={
-                      mode === "mixed" && voice.isSupported && !recap
-                        ? {
-                            isListening: voice.isListening,
-                            liveTranscript: voice.interim,
-                            onToggle: () =>
-                              voice.isListening
-                                ? voice.stopListening()
-                                : voice.startListening(),
-                          }
-                        : undefined
-                    }
-                  />
-                )}
-                <p className="mt-2 text-center text-[11px] text-gray-400">
-                  Oni peut se tromper. Vérifie ce qui compte avant d&apos;agir.
-                </p>
+                  <span>
+                    {streaming
+                      ? "réfléchit…"
+                      : recap
+                        ? "récap à valider"
+                        : "en ligne"}
+                  </span>
+                </div>
               </div>
             </div>
+            <InlineModePills
+              mode={mode}
+              onChange={handleModeChange}
+              voiceSupported={voice.isSupported}
+              compact
+            />
           </div>
-        )}
+
+          {/* Fil de messages */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto py-6 space-y-6 pr-1"
+          >
+            <OniMessage content={intro} />
+            {messages.map((m, idx) =>
+              m.role === "assistant" ? (
+                <OniMessage key={idx} content={m.content} />
+              ) : (
+                <UserMessage key={idx} content={m.content} />
+              )
+            )}
+            {streaming && <OniMessage content={streamBuffer} streaming />}
+            {recap && !streaming && (
+              <RecapCard
+                recap={recap}
+                onConfirm={confirmRecap}
+                onEdit={editRecap}
+                loading={savingRecap}
+              />
+            )}
+            {error && (
+              <div className="text-sm text-status-critical bg-status-critical-bg border border-status-critical/30 rounded-card p-3">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Input focus */}
+          <div className="relative pt-2 pb-5">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -top-8 inset-x-0 h-8 bg-gradient-to-b from-transparent to-[color:var(--color-surface)]"
+            />
+            {mode === "voice" && !recap ? (
+              <VoiceStage
+                streaming={streaming || savingRecap}
+                voice={voice}
+                onSend={sendMessage}
+              />
+            ) : (
+              <ChatInput
+                hero
+                onSend={(msg) => {
+                  sendMessage(msg);
+                  voice.resetTranscript();
+                }}
+                disabled={streaming || savingRecap || !!recap}
+                placeholder={
+                  recap
+                    ? "Valide ou corrige le récap ci-dessus pour continuer…"
+                    : "Écris ta réponse à Oni…"
+                }
+                value={
+                  mode === "mixed"
+                    ? voice.transcript || inputValue
+                    : inputValue
+                }
+                onValueChange={(v) => {
+                  setInputValue(v);
+                  if (mode === "mixed") voice.resetTranscript();
+                }}
+                voice={
+                  mode === "mixed" && voice.isSupported && !recap
+                    ? {
+                        isListening: voice.isListening,
+                        liveTranscript: voice.interim,
+                        onToggle: () =>
+                          voice.isListening
+                            ? voice.stopListening()
+                            : voice.startListening(),
+                      }
+                    : undefined
+                }
+              />
+            )}
+            <p className="mt-2 text-center text-[11px] text-gray-400">
+              Oni peut se tromper. Vérifie ce qui compte avant d&apos;agir.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // MODE WELCOME — shell complet inspiré Script/Orbita
+  // ============================================================
+  return (
+    <AppShell userEmail={userEmail} onSignOut={signOut} right={<WelcomeSidePanel />}>
+    <div className="relative min-h-full bg-surface overflow-hidden">
+      <>
+        {/* Halo doux en haut, plus large et plus profond */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-[720px] -z-10"
+          style={{
+            background:
+              "radial-gradient(65% 55% at 50% 5%, rgba(0,34,255,0.16), rgba(0,34,255,0.04) 45%, transparent 75%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035]"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+          }}
+        />
+      </>
+
+      {/* Topbar interne au shell : titre section + upgrade/avatar (façon Script) */}
+      <div className="flex items-center justify-between gap-3 px-5 sm:px-8 h-16 border-b border-gray-200/60">
+        <div className="flex items-center gap-2 text-[13px] text-gray-500">
+          <span className="h-6 w-6 rounded-md bg-accent-light text-accent-dark flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </span>
+          <span className="font-semibold text-gray-900">Chat</span>
+          <span className="text-gray-400">·</span>
+          <span>nouvelle session</span>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 pb-10">
+        <div className="flex flex-col items-center gap-10">
+          {/* Hero — Oni + titre + subtitle */}
+          <div className="flex flex-col items-center text-center">
+            <OniAvatar size={120} halo />
+            <h1 className="mt-8 sm:mt-10 font-display font-semibold text-gray-900 tracking-[-0.03em] leading-[0.95] text-[44px] sm:text-[62px]">
+              Bienvenue sur{" "}
+              <span className="bg-gradient-to-br from-accent via-accent to-[#000a4d] bg-clip-text text-transparent">
+                Cogniwis
+              </span>
+            </h1>
+            <p className="mt-5 text-[15px] sm:text-[17px] text-gray-500 max-w-lg mx-auto leading-relaxed">
+              Lance une conversation avec Oni — il pose des questions
+              ciblées, puis te livre un diagnostic et une action précise
+              à exécuter aujourd&apos;hui.{" "}
+              <span className="text-gray-400">Pas sûr par où commencer ?</span>
+            </p>
+
+            {/* Toggle de ton — pill discrète */}
+            <div className="mt-6 inline-flex items-center gap-1 rounded-pill border border-gray-200 bg-white/80 backdrop-blur p-0.5 text-xs shadow-card">
+              <span className="pl-3 pr-1 text-gray-500">Oni parle au</span>
+              {(["il", "elle"] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGender(g)}
+                  className={`px-3 py-1 rounded-pill font-medium transition-colors ${
+                    gender === g
+                      ? "bg-gray-900 text-white shadow-card"
+                      : "text-gray-600 hover:bg-surface-2"
+                  }`}
+                  aria-pressed={gender === g}
+                >
+                  {g === "il" ? "masculin" : "féminin"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Grille de cartes — style Script pastel */}
+          <div className="w-full">
+            <SituationCards onSelect={sendMessage} />
+          </div>
+
+          {/* Input hero */}
+          <div className="w-full">
+            {mode === "voice" ? (
+              <VoiceStage
+                streaming={streaming}
+                voice={voice}
+                onSend={sendMessage}
+              />
+            ) : (
+              <ChatInput
+                hero
+                onSend={(msg) => {
+                  sendMessage(msg);
+                  voice.resetTranscript();
+                }}
+                disabled={streaming}
+                placeholder="Dis-moi ce qui te préoccupe…"
+                value={
+                  mode === "mixed"
+                    ? voice.transcript || inputValue
+                    : inputValue
+                }
+                onValueChange={(v) => {
+                  setInputValue(v);
+                  if (mode === "mixed") voice.resetTranscript();
+                }}
+                voice={
+                  mode === "mixed" && voice.isSupported
+                    ? {
+                        isListening: voice.isListening,
+                        liveTranscript: voice.interim,
+                        onToggle: () =>
+                          voice.isListening
+                            ? voice.stopListening()
+                            : voice.startListening(),
+                      }
+                    : undefined
+                }
+              />
+            )}
+
+            <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+              <InlineModePills
+                mode={mode}
+                onChange={handleModeChange}
+                voiceSupported={voice.isSupported}
+              />
+              <p className="text-[11px] text-gray-400">
+                {mode === "voice"
+                  ? "Clique le micro pour parler, reclique pour envoyer."
+                  : "Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne"}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     </AppShell>

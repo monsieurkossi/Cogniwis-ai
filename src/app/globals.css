@@ -40,6 +40,17 @@ body {
   font-family: var(--font-red-hat), "Red Hat Display", ui-sans-serif,
     system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "ss02", "cv02", "cv11";
+}
+
+/* Titres display — usage explicite via className="font-display" */
+.font-display {
+  font-family: var(--font-red-hat), "Red Hat Display", ui-sans-serif,
+    system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  letter-spacing: -0.025em;
 }
 
 /* Oni orb — véritable sphère 3D avec highlight, ombre projetée, glow, rim light */
