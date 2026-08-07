@@ -53,6 +53,13 @@ body {
   letter-spacing: -0.025em;
 }
 
+/* Hero editorial — Instrument Serif, ton conseiller littéraire */
+.font-serif {
+  font-family: var(--font-serif), "Instrument Serif", "Iowan Old Style",
+    "Charter", Georgia, "Times New Roman", serif;
+  letter-spacing: -0.015em;
+}
+
 /* Oni orb — véritable sphère 3D avec highlight, ombre projetée, glow, rim light */
 .oni-orb {
   position: relative;

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Red_Hat_Display } from "next/font/google";
+import { Red_Hat_Display, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +9,14 @@ const redHat = Red_Hat_Display({
   subsets: ["latin"],
   display: "swap",
   weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -36,7 +44,10 @@ export default async function RootLayout({
   } = await supabase.auth.getUser();
 
   return (
-    <html lang="fr" className={`${redHat.variable} h-full antialiased`}>
+    <html
+      lang="fr"
+      className={`${redHat.variable} ${instrumentSerif.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col font-sans">
         <Navbar userEmail={user?.email ?? null} />
         <main className="flex-1">{children}</main>

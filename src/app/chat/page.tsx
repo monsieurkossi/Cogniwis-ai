@@ -52,6 +52,7 @@ export default function ChatPage() {
   const [savingRecap, setSavingRecap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedAt = useRef<string>(new Date().toISOString());
   const voice = useVoiceInput("fr-FR");
@@ -195,68 +196,97 @@ export default function ChatPage() {
       <div className="h-full flex flex-col">
         {/* ============ ÉTAT WELCOME ============ */}
         {!started ? (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl mx-auto w-full px-5 sm:px-6 pt-8 sm:pt-12 pb-4">
-              {/* Hero */}
+          <div className="flex-1 flex flex-col justify-center overflow-y-auto">
+            <div className="max-w-xl mx-auto w-full px-6 py-10">
+              {/* Hero — mark + serif greeting + subtitle */}
               <div className="text-center">
-                <div className="inline-block">
-                  <OniAvatar size={92} halo />
-                </div>
-                <h1 className="mt-6 font-display font-semibold text-gray-900 tracking-[-0.028em] leading-[1] text-[34px] sm:text-[44px]">
-                  Bonjour, moi c&apos;est{" "}
-                  <span className="text-accent">Oni</span>.
+                <OniAvatar size={44} />
+                <h1 className="mt-6 font-serif text-[38px] sm:text-[46px] leading-[1.05] text-gray-900">
+                  Bonjour. Je suis{" "}
+                  <span className="italic text-accent">Oni</span>.
                 </h1>
-                <p className="mt-3 text-[14px] sm:text-[15px] text-gray-500 max-w-md mx-auto leading-relaxed">
-                  Ton conseiller stratégique. On va faire le point sur ton
-                  activité en 5 minutes, sans jargon.
+                <p className="mt-3 text-[14.5px] text-gray-500 max-w-md mx-auto leading-relaxed">
+                  Décris ce qui te préoccupe. Je pose 5&nbsp;à&nbsp;8 questions
+                  ciblées, puis je te livre un diagnostic et une action précise
+                  à exécuter aujourd&apos;hui.
                 </p>
-
-                {/* Pills Ton + Mode */}
-                <div className="mt-5 flex items-center justify-center gap-2 flex-wrap">
-                  <div className="inline-flex items-center gap-1 rounded-pill border border-gray-200 bg-white p-0.5 text-[11px]">
-                    <span className="pl-3 pr-1 text-gray-500">Ton</span>
-                    {(["il", "elle"] as const).map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => setGender(g)}
-                        className={`px-3 py-1 rounded-pill font-medium transition-colors ${
-                          gender === g
-                            ? "bg-gray-900 text-white"
-                            : "text-gray-600 hover:bg-surface-2"
-                        }`}
-                        aria-pressed={gender === g}
-                      >
-                        {g === "il" ? "masculin" : "féminin"}
-                      </button>
-                    ))}
-                  </div>
-                  <InlineModePills
-                    mode={mode}
-                    onChange={handleModeChange}
-                    voiceSupported={voice.isSupported}
-                  />
-                </div>
               </div>
 
-              {/* Ce qui va se passer — variante C */}
+              {/* Input focal */}
               <div className="mt-8">
-                <WhatHappensNext />
+                {mode === "voice" ? (
+                  <VoiceStage
+                    streaming={streaming}
+                    voice={voice}
+                    onSend={sendMessage}
+                  />
+                ) : (
+                  <ChatInput
+                    onSend={(msg) => {
+                      sendMessage(msg);
+                      voice.resetTranscript();
+                    }}
+                    disabled={streaming}
+                    placeholder="Dis-moi ce qui te préoccupe…"
+                    value={
+                      mode === "mixed"
+                        ? voice.transcript || inputValue
+                        : inputValue
+                    }
+                    onValueChange={(v) => {
+                      setInputValue(v);
+                      if (mode === "mixed") voice.resetTranscript();
+                    }}
+                    voice={
+                      mode === "mixed" && voice.isSupported
+                        ? {
+                            isListening: voice.isListening,
+                            liveTranscript: voice.interim,
+                            onToggle: () =>
+                              voice.isListening
+                                ? voice.stopListening()
+                                : voice.startListening(),
+                          }
+                        : undefined
+                    }
+                  />
+                )}
               </div>
 
-              {/* Cartes situation */}
+              {/* Chips typographiques — points de départ */}
               <div className="mt-4">
                 <SituationCards onSelect={sendMessage} />
               </div>
+
+              {/* Barre utilitaire discrète en pied */}
+              <div className="mt-10 flex items-center justify-center gap-3 flex-wrap text-[11.5px] text-gray-400">
+                <ToneDropdown value={gender} onChange={setGender} />
+                <span className="text-gray-200">·</span>
+                <ModeDropdown
+                  value={mode}
+                  onChange={handleModeChange}
+                  voiceSupported={voice.isSupported}
+                />
+                <span className="text-gray-200">·</span>
+                <button
+                  type="button"
+                  onClick={() => setShowHowItWorks(true)}
+                  className="hover:text-gray-700 underline decoration-gray-200 underline-offset-4 hover:decoration-gray-400 transition-colors"
+                >
+                  Comment ça marche
+                </button>
+              </div>
+
+              {error && (
+                <div className="mt-4 text-[12px] text-status-critical bg-status-critical-bg border border-status-critical/30 rounded-lg p-3 text-center">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
         ) : (
           // ============ ÉTAT CONVERSATION ============
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto"
-          >
-            {/* Sous-header conversation (Oni + statut) */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto">
             <div className="sticky top-0 z-10 bg-surface/90 backdrop-blur border-b border-gray-100">
               <div className="max-w-2xl mx-auto w-full px-5 sm:px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -285,8 +315,8 @@ export default function ChatPage() {
                     </div>
                   </div>
                 </div>
-                <InlineModePills
-                  mode={mode}
+                <ModeDropdown
+                  value={mode}
                   onChange={handleModeChange}
                   voiceSupported={voice.isSupported}
                   compact
@@ -294,7 +324,6 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Messages */}
             <div className="max-w-2xl mx-auto w-full px-5 sm:px-6 py-6 space-y-6">
               <OniMessage content={ONI_INTRO} />
               {messages.map((m, idx) =>
@@ -322,60 +351,283 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* ============ INPUT (identique dans les deux états) ============ */}
-        <div className="shrink-0 border-t border-gray-100 bg-surface">
-          <div className="max-w-2xl mx-auto w-full px-5 sm:px-6 py-3 sm:py-4">
-            {mode === "voice" && !recap ? (
-              <VoiceStage
-                streaming={streaming || savingRecap}
-                voice={voice}
-                onSend={sendMessage}
-              />
-            ) : (
-              <ChatInput
-                emphasized={!started}
-                onSend={(msg) => {
-                  sendMessage(msg);
-                  voice.resetTranscript();
-                }}
-                disabled={streaming || savingRecap || !!recap}
-                placeholder={
-                  recap
-                    ? "Valide ou corrige le récap ci-dessus pour continuer…"
-                    : started
-                      ? "Écris ta réponse à Oni…"
-                      : "Dis-moi ce qui te préoccupe…"
-                }
-                value={
-                  mode === "mixed" ? voice.transcript || inputValue : inputValue
-                }
-                onValueChange={(v) => {
-                  setInputValue(v);
-                  if (mode === "mixed") voice.resetTranscript();
-                }}
-                voice={
-                  mode === "mixed" && voice.isSupported && !recap
-                    ? {
-                        isListening: voice.isListening,
-                        liveTranscript: voice.interim,
-                        onToggle: () =>
-                          voice.isListening
-                            ? voice.stopListening()
-                            : voice.startListening(),
-                      }
-                    : undefined
-                }
-              />
-            )}
-            <div className="text-center text-[10.5px] text-gray-400 mt-2">
-              {started
-                ? "Oni peut se tromper. Vérifie ce qui compte avant d'agir."
-                : "Entrée pour envoyer · Session privée sur ton appareil"}
+        {/* Input persistant en bas — uniquement en mode conversation */}
+        {started && (
+          <div className="shrink-0 border-t border-gray-100 bg-surface">
+            <div className="max-w-2xl mx-auto w-full px-5 sm:px-6 py-3 sm:py-4">
+              {mode === "voice" && !recap ? (
+                <VoiceStage
+                  streaming={streaming || savingRecap}
+                  voice={voice}
+                  onSend={sendMessage}
+                />
+              ) : (
+                <ChatInput
+                  onSend={(msg) => {
+                    sendMessage(msg);
+                    voice.resetTranscript();
+                  }}
+                  disabled={streaming || savingRecap || !!recap}
+                  placeholder={
+                    recap
+                      ? "Valide ou corrige le récap ci-dessus pour continuer…"
+                      : "Écris ta réponse à Oni…"
+                  }
+                  value={
+                    mode === "mixed"
+                      ? voice.transcript || inputValue
+                      : inputValue
+                  }
+                  onValueChange={(v) => {
+                    setInputValue(v);
+                    if (mode === "mixed") voice.resetTranscript();
+                  }}
+                  voice={
+                    mode === "mixed" && voice.isSupported && !recap
+                      ? {
+                          isListening: voice.isListening,
+                          liveTranscript: voice.interim,
+                          onToggle: () =>
+                            voice.isListening
+                              ? voice.stopListening()
+                              : voice.startListening(),
+                        }
+                      : undefined
+                  }
+                />
+              )}
+              <div className="text-center text-[10.5px] text-gray-400 mt-2">
+                Oni peut se tromper. Vérifie ce qui compte avant d&apos;agir.
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Modal "Comment ça marche" */}
+      {showHowItWorks && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm"
+          onClick={() => setShowHowItWorks(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-3 py-2">
+              <div className="text-[13px] font-semibold text-gray-900">
+                Comment ça marche
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHowItWorks(false)}
+                className="h-7 w-7 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-surface-2 flex items-center justify-center"
+                aria-label="Fermer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <WhatHappensNext />
+          </div>
+        </div>
+      )}
     </AppShell>
+  );
+}
+
+// ============================================================
+// Dropdowns discrets
+// ============================================================
+function ToneDropdown({
+  value,
+  onChange,
+}: {
+  value: OniGender;
+  onChange: (g: OniGender) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = value === "il" ? "masculin" : "féminin";
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1 hover:text-gray-700 transition-colors"
+      >
+        <span>Oni parle au {label}</span>
+        <Chevron open={open} />
+      </button>
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-1 min-w-[120px]">
+            {(["il", "elle"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => {
+                  onChange(g);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 rounded-md text-[12px] transition-colors ${
+                  value === g
+                    ? "bg-accent-light text-accent-dark font-medium"
+                    : "text-gray-700 hover:bg-surface-2"
+                }`}
+              >
+                {g === "il" ? "masculin" : "féminin"}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ModeDropdown({
+  value,
+  onChange,
+  voiceSupported,
+  compact = false,
+}: {
+  value: InteractionMode;
+  onChange: (m: InteractionMode) => void;
+  voiceSupported: boolean;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const MODES: { id: InteractionMode; label: string; needsVoice: boolean }[] = [
+    { id: "text", label: "Écrire", needsVoice: false },
+    { id: "mixed", label: "Mixte", needsVoice: true },
+    { id: "voice", label: "Parler", needsVoice: true },
+  ];
+  const current = MODES.find((m) => m.id === value) ?? MODES[0];
+
+  if (compact) {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex items-center gap-1 text-[10.5px] text-gray-500 hover:text-gray-900 border border-gray-200 rounded-full px-3 py-1 hover:bg-surface-2 transition-colors"
+        >
+          <span>{current.label}</span>
+          <Chevron open={open} />
+        </button>
+        {open && (
+          <ModeMenu
+            modes={MODES}
+            value={value}
+            voiceSupported={voiceSupported}
+            onSelect={(m) => {
+              onChange(m);
+              setOpen(false);
+            }}
+            onClose={() => setOpen(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1 hover:text-gray-700 transition-colors"
+      >
+        <span>Mode {current.label.toLowerCase()}</span>
+        <Chevron open={open} />
+      </button>
+      {open && (
+        <ModeMenu
+          modes={MODES}
+          value={value}
+          voiceSupported={voiceSupported}
+          onSelect={(m) => {
+            onChange(m);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModeMenu({
+  modes,
+  value,
+  voiceSupported,
+  onSelect,
+  onClose,
+}: {
+  modes: { id: InteractionMode; label: string; needsVoice: boolean }[];
+  value: InteractionMode;
+  voiceSupported: boolean;
+  onSelect: (m: InteractionMode) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        aria-hidden
+        tabIndex={-1}
+        className="fixed inset-0 z-10"
+        onClick={onClose}
+      />
+      <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-1 min-w-[120px]">
+        {modes.map((m) => {
+          const disabled = m.needsVoice && !voiceSupported;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onSelect(m.id)}
+              className={`w-full text-left px-3 py-1.5 rounded-md text-[12px] transition-colors ${
+                value === m.id
+                  ? "bg-accent-light text-accent-dark font-medium"
+                  : disabled
+                    ? "text-gray-300 cursor-not-allowed"
+                    : "text-gray-700 hover:bg-surface-2"
+              }`}
+            >
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="9"
+      height="9"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`transition-transform ${open ? "rotate-180" : ""}`}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }
 
@@ -389,48 +641,16 @@ function SessionsEmptyPanel() {
         <div className="text-[12px] font-semibold text-gray-900">
           Sessions <span className="text-gray-400 font-normal">(0)</span>
         </div>
-        <span className="text-gray-400 text-sm">···</span>
       </div>
 
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-4 text-center">
-        <div className="mx-auto h-9 w-9 rounded-full bg-accent-light text-accent-dark flex items-center justify-center text-[15px]">
-          💬
-        </div>
-        <div className="mt-2 text-[12.5px] font-semibold text-gray-900">
+      <div className="rounded-xl border border-dashed border-gray-200 bg-white/50 p-4 text-center">
+        <div className="text-[12.5px] font-medium text-gray-900">
           Aucune session
         </div>
         <div className="mt-1 text-[11px] text-gray-500 leading-relaxed">
           Elles apparaîtront ici après ta première conversation avec Oni.
         </div>
       </div>
-
-      {/* Teaser grisé */}
-      <div className="space-y-1 opacity-35 pointer-events-none">
-        <PlaceholderItem title="Boulangerie · clients" sub="Écart offre / demande" />
-        <PlaceholderItem title="Freelance dev" sub="Positionnement niche" />
-        <PlaceholderItem title="Prix trop bas" sub="Reformuler l'offre" />
-      </div>
-
-      <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-accent-dark text-white p-4">
-        <div className="text-[10px] uppercase tracking-[0.14em] text-white/60 font-semibold">
-          Bon à savoir
-        </div>
-        <p className="mt-1.5 text-[11.5px] leading-relaxed text-white/85">
-          La session reste privée sur ton appareil tant que tu ne crées pas
-          de compte.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function PlaceholderItem({ title, sub }: { title: string; sub: string }) {
-  return (
-    <div className="px-2 py-2 rounded-lg">
-      <div className="text-[12px] font-semibold text-gray-900 leading-tight">
-        {title}
-      </div>
-      <div className="text-[10.5px] text-gray-400">{sub}</div>
     </div>
   );
 }
@@ -470,7 +690,7 @@ function SessionRunningPanel({
         Session en cours
       </div>
 
-      <div className="rounded-2xl bg-white border border-gray-200 shadow-card p-4">
+      <div className="rounded-xl bg-white border border-gray-200 p-4">
         <div className="flex items-baseline justify-between">
           <div className="text-3xl font-semibold text-gray-900 leading-none">
             {assistantTurns}
@@ -531,63 +751,6 @@ function SessionRunningPanel({
           })}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Mode pills (Écrire / Mixte / Parler)
-// ============================================================
-interface InlineModePillsProps {
-  mode: InteractionMode;
-  onChange: (m: InteractionMode) => void;
-  voiceSupported: boolean;
-  compact?: boolean;
-}
-
-function InlineModePills({
-  mode,
-  onChange,
-  voiceSupported,
-  compact = false,
-}: InlineModePillsProps) {
-  const MODES: { id: InteractionMode; label: string; needsVoice: boolean }[] = [
-    { id: "text", label: "Écrire", needsVoice: false },
-    { id: "mixed", label: "Mixte", needsVoice: true },
-    { id: "voice", label: "Parler", needsVoice: true },
-  ];
-  return (
-    <div
-      className={`inline-flex items-center gap-0.5 rounded-pill bg-white border border-gray-200 p-0.5 ${
-        compact ? "text-[10.5px]" : "text-[11px]"
-      }`}
-    >
-      {MODES.map((m) => {
-        const disabled = m.needsVoice && !voiceSupported;
-        const active = mode === m.id;
-        return (
-          <button
-            key={m.id}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(m.id)}
-            title={
-              disabled
-                ? "Reconnaissance vocale non supportée par ce navigateur"
-                : undefined
-            }
-            className={`px-3 py-1 rounded-pill font-medium transition-colors ${
-              active
-                ? "bg-accent text-white"
-                : disabled
-                  ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:bg-surface-2"
-            }`}
-          >
-            {m.label}
-          </button>
-        );
-      })}
     </div>
   );
 }
