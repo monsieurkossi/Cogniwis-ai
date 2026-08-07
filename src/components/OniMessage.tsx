@@ -6,7 +6,7 @@ interface Props {
 export function OniMessage({ content, streaming = false }: Props) {
   return (
     <div className="w-full">
-      <div className="text-gray-900 whitespace-pre-wrap leading-[1.7] text-[15.5px] max-w-[85%]">
+      <div className="text-gray-900 whitespace-pre-wrap leading-[1.72] text-[15.5px] max-w-[88%] tracking-[-0.005em]">
         {content}
         {streaming && !content && (
           <span className="typing-dots">

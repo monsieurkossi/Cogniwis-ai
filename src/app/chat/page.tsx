@@ -196,19 +196,22 @@ export default function ChatPage() {
       <div className="h-full flex flex-col">
         {/* ============ ÉTAT WELCOME ============ */}
         {!started ? (
-          <div className="flex-1 flex flex-col justify-center overflow-y-auto">
-            <div className="max-w-xl mx-auto w-full px-6 py-10">
+          <div className="ambient-studio flex-1 flex flex-col justify-center overflow-y-auto">
+            <div className="relative z-[1] max-w-xl mx-auto w-full px-6 py-12">
               {/* Hero — mark + serif greeting + subtitle */}
               <div className="text-center">
-                <OniAvatar size={44} />
-                <h1 className="mt-6 font-serif text-[38px] sm:text-[46px] leading-[1.05] text-gray-900">
+                <div className="relative inline-block">
+                  <OniAvatar size={52} aura breathing />
+                </div>
+                <h1 className="mt-7 font-serif text-[42px] sm:text-[54px] leading-[1] text-gray-900">
                   Bonjour. Je suis{" "}
                   <span className="italic text-accent">Oni</span>.
                 </h1>
-                <p className="mt-3 text-[14.5px] text-gray-500 max-w-md mx-auto leading-relaxed">
-                  Décris ce qui te préoccupe. Je pose 5&nbsp;à&nbsp;8 questions
-                  ciblées, puis je te livre un diagnostic et une action précise
-                  à exécuter aujourd&apos;hui.
+                <p className="mt-4 text-[15px] text-gray-500 max-w-md mx-auto leading-[1.6]">
+                  Ton conseiller stratégique. Dis-moi ce qui te bloque —
+                  <span className="text-gray-700"> cinq minutes suffisent </span>
+                  pour un diagnostic honnête et une action précise à exécuter
+                  aujourd&apos;hui.
                 </p>
               </div>
 

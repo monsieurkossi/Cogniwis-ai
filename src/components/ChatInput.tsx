@@ -63,7 +63,7 @@ export function ChatInput({
   const canSend = value.trim().length > 0 && !disabled;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-[20px] shadow-[0_8px_24px_-12px_rgba(15,23,42,0.1)] focus-within:border-gray-300 focus-within:shadow-[0_10px_30px_-12px_rgba(15,23,42,0.15)] transition-all px-4 pt-3.5 pb-2.5">
+    <div className="glass-input rounded-[22px] px-4 pt-3.5 pb-2.5">
       <textarea
         ref={textareaRef}
         value={displayValue}
@@ -122,11 +122,7 @@ export function ChatInput({
         <button
           onClick={submit}
           disabled={!canSend}
-          className={`shrink-0 h-9 w-9 rounded-xl flex items-center justify-center transition-all ${
-            canSend
-              ? "bg-gray-900 hover:bg-black text-white"
-              : "bg-surface-2 text-gray-300 cursor-not-allowed"
-          }`}
+          className="send-onyx shrink-0 h-9 w-9 rounded-xl flex items-center justify-center text-white"
           aria-label="Envoyer"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

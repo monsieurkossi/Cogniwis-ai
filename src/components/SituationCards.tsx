@@ -45,7 +45,7 @@ export function SituationCards({ onSelect }: Props) {
           key={s.id}
           type="button"
           onClick={() => onSelect(s.prompt)}
-          className="text-[12.5px] text-gray-700 bg-white border border-gray-200 hover:border-gray-300 hover:bg-surface-2 hover:text-gray-900 px-3 py-1.5 rounded-full transition-colors"
+          className="chip-glass text-[12.5px] text-gray-700 hover:text-gray-900 px-3.5 py-1.5 rounded-full"
         >
           {s.title}
         </button>
