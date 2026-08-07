@@ -74,23 +74,47 @@ interface Props {
 }
 
 export function SituationCards({ onSelect, variant = "chips" }: Props) {
-  // "chips" = grille 2x2 sobre — bordure fine, hover accent, pas de pastel
+  // "chips" = grille 2x2 façon action cards Script/Orbita
   if (variant === "chips") {
     return (
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {SITUATIONS.map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => onSelect(s.prompt)}
-            className="group text-left rounded-2xl border border-gray-100 bg-white/70 hover:border-accent/40 hover:bg-white transition-all px-4 py-3.5"
+            className="chip-3d group text-left px-4 py-4 flex items-center gap-3.5"
           >
-            <p className="text-[13.5px] font-semibold text-gray-900 group-hover:text-accent transition-colors leading-tight">
-              {s.title}
-            </p>
-            <p className="text-[11.5px] text-gray-400 mt-1 leading-snug">
-              {s.subtitle}
-            </p>
+            <span
+              className={`h-11 w-11 shrink-0 rounded-2xl ${s.tint.bg} ${s.tint.text} flex items-center justify-center transition-transform group-hover:scale-105`}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {s.icon}
+              </svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-[15px] text-gray-900 leading-tight">
+                {s.title}
+              </div>
+              <div className="text-[12px] text-gray-500 mt-0.5 truncate">
+                {s.subtitle}
+              </div>
+            </div>
+            <span className="h-7 w-7 shrink-0 rounded-full border border-gray-200 text-gray-400 group-hover:text-accent group-hover:border-accent flex items-center justify-center transition-colors">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </span>
           </button>
         ))}
       </div>
